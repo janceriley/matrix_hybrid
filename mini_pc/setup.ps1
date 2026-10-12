@@ -1,5 +1,5 @@
 # Creates this folder's own Python environment (.venv) for the mini PC program.
-# Run it once on the mini PC: right-click setup.ps1 > Run with PowerShell.
+# Run it once on the mini PC by double-clicking setup.bat, which runs this script.
 # Use -Python C:\path\to\python.exe to pick a specific Python, and -Dev to add test tools.
 param(
     [string]$Python,
@@ -46,7 +46,7 @@ if (-not (Test-Path -LiteralPath $venvPython) -or -not (Test-PythonVersion $venv
         }
     }
     if (-not $selectedPython) {
-        throw 'Python 3.10 or newer with tkinter is required. Install it from python.org (tick "tcl/tk" and "py launcher"), then run setup.ps1 again.'
+        throw 'Python 3.10 or newer with tkinter is required. Install it from python.org (tick "tcl/tk" and "py launcher"), then run setup.bat again.'
     }
     Write-Host "Creating the Python environment with $selectedPython ..."
     & $selectedPython -B -m venv $venvRoot

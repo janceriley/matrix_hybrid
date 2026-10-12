@@ -117,8 +117,8 @@ class StudioSettingsDialog:
         ttk.Label(
             box,
             text=(
-                "To open this program whenever Windows signs in, run add_to_startup.ps1 in the "
-                "mini_pc folder. Also turn off sleep for this PC."
+                "To open this program whenever Windows signs in, double-click add_to_startup.bat "
+                "in the mini_pc folder. Also turn off sleep for this PC."
             ),
             foreground=MUTED,
             wraplength=520,

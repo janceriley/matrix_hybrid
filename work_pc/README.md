@@ -12,16 +12,16 @@ See the [main guide](../README.md) for setup and troubleshooting.
 ## Files
 | File | Purpose |
 |---|---|
-| `setup.ps1` | Creates `.venv`, installs the shared code from `..\mini_pc` and then this viewer |
+| `setup.bat` | Creates `.venv`, installs the shared code from `..\mini_pc` and then this viewer. Runs `setup.ps1` |
 | `Start Work PC.pyw` / `.bat` | Start the viewer |
-| `add_to_startup.ps1` / `remove_from_startup.ps1` | Open the viewer when Windows signs in |
+| `add_to_startup.bat` / `remove_from_startup.bat` | Open the viewer when Windows signs in. Each runs the `.ps1` of the same name |
 | `matrix_viewer\` | The viewer program |
 
 The connection settings (address, port, password) and positions are kept in `%APPDATA%\OptionsMatrixViewer`.
 
 ## Tests
 ```powershell
-.\setup.ps1 -Dev
+.\setup.bat -Dev
 .\.venv\Scripts\python.exe -B -m pytest -q
 ```
 The end-to-end tests start both programs on this PC, connect them over `127.0.0.1` using demo data, and check that every number matches.

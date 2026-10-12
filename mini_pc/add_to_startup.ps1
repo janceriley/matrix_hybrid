@@ -1,10 +1,10 @@
 # Opens Options Matrix Studio automatically whenever you sign in to Windows.
-# Run once: right-click > Run with PowerShell. Undo with remove_from_startup.ps1.
+# Run once by double-clicking add_to_startup.bat. Undo with remove_from_startup.bat.
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
 $pythonw = Join-Path $projectRoot '.venv\Scripts\pythonw.exe'
 if (-not (Test-Path -LiteralPath $pythonw)) {
-    throw 'Run setup.ps1 in this folder first.'
+    throw 'Run setup.bat in this folder first.'
 }
 $startup = [Environment]::GetFolderPath('Startup')
 $shortcutPath = Join-Path $startup 'Options Matrix Studio.lnk'

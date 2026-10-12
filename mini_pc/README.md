@@ -11,10 +11,10 @@ See the [main guide](../README.md) for setup on both PCs, troubleshooting and th
 ## Files
 | File | Purpose |
 |---|---|
-| `setup.ps1` | Creates `.venv` and installs everything (`-Dev` adds test tools) |
+| `setup.bat` | Creates `.venv` and installs everything (`-Dev` adds test tools). Runs `setup.ps1` |
 | `Start Mini PC.pyw` / `.bat` | Start the program |
 | `Start Mini PC (demo data).pyw` | Start with made-up prices, for testing any time |
-| `add_to_startup.ps1` / `remove_from_startup.ps1` | Open the program when Windows signs in |
+| `add_to_startup.bat` / `remove_from_startup.bat` | Open the program when Windows signs in. Each runs the `.ps1` of the same name |
 | `schwab_auth\authorize_schwab.bat` | Weekly Schwab re-authorization |
 | `options_matrix\` | The program. The work PC viewer imports this code too |
 | `docs\sharing.md` | How the link to the work PC works |
@@ -26,6 +26,6 @@ See the [main guide](../README.md) for setup on both PCs, troubleshooting and th
 
 ## Tests
 ```powershell
-.\setup.ps1 -Dev
+.\setup.bat -Dev
 .\.venv\Scripts\python.exe -B -m pytest -q
 ```

@@ -28,7 +28,7 @@ How the numbers stay identical: the viewer doesn't receive finished numbers. It 
 2. Copy this **whole** `multi_matrix` folder to each PC. The viewer uses code from the `mini_pc` folder, so both folders must be present on the work PC too. Keep both PCs on the same copy.
 
 ### Mini PC
-1. In `mini_pc`, right-click **setup.ps1** > **Run with PowerShell**. This creates the program's own Python environment (`mini_pc\.venv`) and installs what it needs.
+1. In `mini_pc`, double-click **setup.bat**. This creates the program's own Python environment (`mini_pc\.venv`) and installs what it needs. The window stays open when it's done so you can read the result.
 2. Schwab credentials: copy `schwab_token.json` from `Options_Matrix\oma_app\schwab_auth\` into `mini_pc\schwab_auth\`, or run `mini_pc\schwab_auth\authorize_schwab.bat`. The credentials file stays on the mini PC only.
 3. Double-click **Start Mini PC.pyw**. The first time it opens, it copies your existing fair-value settings and saved tabs from the original Options Matrix.
 4. Windows will probably ask whether **Python** may use the network. Tick **Private networks** only and click **Allow**.
@@ -39,7 +39,7 @@ How the numbers stay identical: the viewer doesn't receive finished numbers. It 
    - Never set up **port forwarding** for this port. The link is meant for your home network only.
 
 ### Work PC
-1. In `work_pc`, right-click **setup.ps1** > **Run with PowerShell**.
+1. In `work_pc`, double-click **setup.bat**.
 2. Double-click **Start Work PC.pyw**.
 3. Click **CONNECTION…** and enter the mini PC's address, port and password. The viewer remembers them and reconnects by itself from then on.
 
@@ -77,7 +77,7 @@ On the mini PC, click **MINI PC…** and tick:
 - **Record every trading day automatically.** Recording is armed before the open, stops at the close, and starts again the next trading day. If you press **Stop recording** yourself, it stays stopped for the rest of that day.
 
 Then:
-- Run **mini_pc\add_to_startup.ps1** (right-click > Run with PowerShell) so the program opens when Windows signs in. Undo it with `remove_from_startup.ps1`.
+- Double-click **mini_pc\add_to_startup.bat** so the program opens when Windows signs in. Undo it with `remove_from_startup.bat`.
 - Turn off sleep: Settings > System > Power > Screen and sleep > **Never**.
 - Set Windows Update **active hours** to cover market hours, so it doesn't restart mid-session.
 - Optionally, let Windows sign in by itself after a restart.
@@ -94,6 +94,8 @@ On the mini PC, double-click **Start Mini PC (demo data).pyw**. It uses made-up 
 ---
 
 ## Troubleshooting
+
+**A setup window flashes and closes, or says *running scripts is disabled on this system*:** a `.ps1` file was opened directly, and Windows blocks PowerShell scripts by default. Double-click the `.bat` file with the same name instead (for example `setup.bat`).
 
 | Viewer shows | What to do |
 |---|---|
@@ -135,7 +137,7 @@ New-NetFirewallRule -DisplayName "Options Matrix Studio" -Direction Inbound -Pro
 - The password itself is never sent: each side proves it knows the password by answering a one-time challenge.
 
 ## For developers and AI assistants
-- Run the tests with the program folder's own Python, after `setup.ps1 -Dev`:
+- Run the tests with the program folder's own Python, after `setup.bat -Dev`:
   - mini PC: `cd mini_pc`, then `.venv\Scripts\python.exe -B -m pytest -q`
   - work PC: `cd work_pc`, then `.venv\Scripts\python.exe -B -m pytest -q`
   - The work PC tests include end-to-end runs of both programs on this PC's loopback address, using demo data and real Tk windows.

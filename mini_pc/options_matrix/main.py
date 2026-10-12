@@ -37,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .app import OptionsMatrixApp
     except ImportError as exc:
         if getattr(exc, "name", "") == "websocket":
-            print("Missing dependency `websocket-client`. Run setup.ps1 in the mini_pc folder.")
+            print("Missing dependency `websocket-client`. Run setup.bat in the mini_pc folder.")
             return 1
         raise
 

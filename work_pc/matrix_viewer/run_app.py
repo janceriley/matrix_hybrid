@@ -85,7 +85,7 @@ def main() -> int:
             project_root,
             "Options Matrix Viewer cannot start because its project virtual environment "
             f"does not exist:\n  {venv_dir}\n"
-            "Right-click setup.ps1 in the work_pc folder, choose Run with PowerShell, "
+            "Double-click setup.bat in the work_pc folder, "
             "then start the program again.",
         )
         return 1
