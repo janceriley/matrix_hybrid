@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "options-matrix-studio"
+version = "1.0.0"
+description = "Mini PC program: Schwab options spread matrix, built-in recorder, and sharing with work PC viewers"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "websocket-client>=1.6.0",
+    "pandas_market_calendars>=5.4.0",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+# Writing recordings needs pyarrow; the work PC viewer does not install it.
+recording = ["pyarrow>=15.0.0"]
+test = ["pytest>=8"]
+
+[project.gui-scripts]
+options-matrix-studio = "options_matrix.main:main"
+
+[tool.setuptools.packages.find]
+include = ["options_matrix*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

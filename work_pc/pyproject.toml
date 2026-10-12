@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "options-matrix-viewer"
+version = "1.0.0"
+description = "Work PC program: shows the mini PC's live options matrix, with positions and exit alerts"
+readme = "README.md"
+requires-python = ">=3.10"
+# The matrix code comes from the sibling mini_pc folder. setup.ps1 installs it
+# first; it is deliberately not listed here so pip never looks for it online.
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.gui-scripts]
+options-matrix-viewer = "matrix_viewer.main:main"
+
+[tool.setuptools.packages.find]
+include = ["matrix_viewer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

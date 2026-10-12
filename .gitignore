@@ -1,0 +1,17 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Program output
+logs/
+recordings/
+*.parquet
+*.parquet.inprogress
+
+# Secrets: Schwab credentials stay on the mini PC only
+schwab_token.json
+.env
