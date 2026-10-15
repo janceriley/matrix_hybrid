@@ -52,7 +52,7 @@ Nothing needs to be opened in the work PC's firewall. Only the mini PC accepts c
 ### Mini PC
 - Works like the Options Matrix you know: **Connect**, then load a ticker, expiry, side, strike range and widths, then **Load matrix** (up to 3 tabs).
 - **Recording** tab at the bottom: choose the folder, then **Start recording** / **Stop recording**. Starting before the open waits for the bell, and recording stops at the close.
-- **⇄ 1 VIEWER** (top right) shows how many work PCs are watching.
+- **⮂ 1 VIEWER** (top right) shows how many work PCs are watching.
 
 ### Work PC
 - The viewer's tabs mirror the mini PC's tabs. For each tab, the **VIEW** row lets you narrow the **side**, **strike range** and **widths**. You can't go beyond what the mini PC has loaded. Click **Apply view**; **Show all** returns to the whole tab. A `*` on a tab means you're looking at part of it.

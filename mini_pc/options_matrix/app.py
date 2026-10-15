@@ -2682,7 +2682,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self.recording_rows_var = tk.StringVar(value="0 rows saved")
         self.recording_last_write_var = tk.StringVar(value="--")
         self.record_daily_var = tk.BooleanVar(value=self.studio_settings.record_every_trading_day)
-        self.share_indicator_var = tk.StringVar(value="\u21c4 SHARING OFF")
+        self.share_indicator_var = tk.StringVar(value=f"{one_desk.SHARING_GLYPH} SHARING OFF")
         self._width_preferences_path = width_preferences_config_path(self._settings_path)
         self._width_band_preferences = load_width_band_preferences(
             self._width_preferences_path,
@@ -2889,7 +2889,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             connection,
             textvariable=self.share_indicator_var,
             foreground=NAVY,
-            width=19,  # fits ⇄ SHARING ERROR with a character to spare
+            width=19,  # fits the SHARING ERROR badge with a character to spare
             anchor="center",
         )
         self.share_indicator_label.grid(row=0, column=7, sticky="e", padx=(6, 0))
@@ -6924,7 +6924,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             return left + ((right - left) * max(0.0, min(1.0, normalized)))
 
         if fair_value_message is None:
-            self._draw_fair_value_edge_curve(canvas, snapshot, value_to_x, lane_y["FV"])
+            self._draw_fair_value_edge_curve(canvas, snapshot, value_to_x, lane_y["FV"], low=left, high=width - 4)
         else:
             canvas.create_text(
                 left + 8,
@@ -6935,34 +6935,46 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 anchor="w",
             )
 
-        dots_by_lane: dict[str, list[tuple[float, str, str]]] = {}
+        labels_by_lane: dict[str, list[tuple[float, str, str]]] = {}
         for lane, value, color, label in values:
             if value is None:
                 continue
             y = lane_y[lane]
             x = value_to_x(value)
             canvas.create_oval(x - 4, y - 4, x + 4, y + 4, fill=color, outline=color)
-            dots_by_lane.setdefault(lane, []).append((x, color, label))
-        measure_label = getattr(self.detail_font, "measure", lambda text: 7 * len(text))
-        for lane, dots in dots_by_lane.items():
-            # Close bid, mid and ask prices spread their labels apart instead of overprinting them.
-            label_xs = one_desk.spread_labels(
-                [x for x, _color, _label in dots],
-                [measure_label(label) for _x, _color, label in dots],
+            labels_by_lane.setdefault(lane, []).append((x, label, color))
+        for lane, labels in labels_by_lane.items():
+            above = lane == "ANOM"
+            OptionsMatrixApp._draw_detail_labels(
+                self,
+                canvas,
+                labels,
+                y=lane_y[lane] + (-7 if above else 7),
+                anchor="s" if above else "n",
                 low=left,
                 high=width - 4,
             )
-            anchor = "s" if lane == "ANOM" else "n"
-            offset = -7 if anchor == "s" else 7
-            for label_x, (_x, color, label) in zip(label_xs, dots):
-                canvas.create_text(
-                    label_x,
-                    lane_y[lane] + offset,
-                    text=label,
-                    fill=color,
-                    font=self.detail_font,
-                    anchor=anchor,
-                )
+
+    def _draw_detail_labels(
+        self,
+        canvas: tk.Canvas,
+        labels: list[tuple[float, str, str]],
+        *,
+        y: float,
+        anchor: str,
+        low: float = -math.inf,
+        high: float = math.inf,
+    ) -> None:
+        """Draw (x, text, color) labels on one row, spread apart so close prices never overprint each other."""
+        measure = getattr(self.detail_font, "measure", lambda text: 7 * len(text))
+        label_xs = one_desk.spread_labels(
+            [x for x, _text, _color in labels],
+            [measure(text) for _x, text, _color in labels],
+            low=low,
+            high=high,
+        )
+        for label_x, (_x, text, color) in zip(label_xs, labels):
+            canvas.create_text(label_x, y, text=text, fill=color, font=self.detail_font, anchor=anchor)
 
     def _detail_values(self, snapshot: MonitoredSideSnapshot) -> list[tuple[str, float | None, str, str]]:
         values: list[tuple[str, float | None, str, str]] = []
@@ -6986,6 +6998,9 @@ class OptionsMatrixApp(PositionAlertsMixin):
         snapshot: MonitoredSideSnapshot,
         value_to_x: Callable[[float], float],
         y: int,
+        *,
+        low: float = -math.inf,
+        high: float = math.inf,
     ) -> None:
         values = fair_value_edge_curve_values(snapshot)
         if values is None:
@@ -7007,31 +7022,18 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self._draw_detail_notch(canvas, buy_endpoint_x, y, BUY_COLOR, half_height=4, width=1)
         self._draw_detail_notch(canvas, sell_endpoint_x, y, SELL_COLOR, half_height=4, width=1)
         self._draw_detail_dot(canvas, fair_value_x, y, FAIR_VALUE_COLOR, radius=4)
-        canvas.create_text(
-            fair_value_x,
-            y - 8,
-            text=f"FV {format_price(values.fair_value_mid)}",
-            fill=FAIR_VALUE_COLOR,
-            font=self.detail_font,
-            anchor="s",
-        )
+        labels = [(fair_value_x, f"FV {format_price(values.fair_value_mid)}", FAIR_VALUE_COLOR)]
 
-        if snapshot.opportunity_price is None:
-            return
+        if snapshot.opportunity_price is not None:
+            opportunity_x = value_to_x(snapshot.opportunity_price)
+            is_buy = snapshot.opportunity_direction == SIGNAL_BUY
+            letter = "B" if is_buy else "S"
+            color = BUY_COLOR if is_buy else SELL_COLOR
+            self._draw_detail_lettered_dot(canvas, opportunity_x, y, color, letter)
+            labels.append((opportunity_x, format_price(snapshot.opportunity_price), color))
 
-        opportunity_x = value_to_x(snapshot.opportunity_price)
-        is_buy = snapshot.opportunity_direction == SIGNAL_BUY
-        letter = "B" if is_buy else "S"
-        color = BUY_COLOR if is_buy else SELL_COLOR
-        self._draw_detail_lettered_dot(canvas, opportunity_x, y, color, letter)
-        canvas.create_text(
-            opportunity_x,
-            y - 20,
-            text=format_price(snapshot.opportunity_price),
-            fill=color,
-            font=self.detail_font,
-            anchor="s",
-        )
+        # The B/S price shares the FV label's row; any higher, it would sit on the ANOM lane's line.
+        OptionsMatrixApp._draw_detail_labels(self, canvas, labels, y=y - 8, anchor="s", low=low, high=high)
 
     @staticmethod
     def _draw_detail_notch(

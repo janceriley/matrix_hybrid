@@ -1,4 +1,4 @@
-# Vendored: One Desk 0.1.0
+# Vendored: One Desk 0.1.1
 
 This folder is a pinned copy of the `onedesk` package from `Dev\Design\onedesk`, the shared look for Options Matrix, Market Synthetic Playback and the USO scalp dashboard. It sits inside `options_matrix` so both PCs get it with the rest of the folder, and the editable installs on both PCs find it without running setup again.
 

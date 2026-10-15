@@ -38,8 +38,12 @@ def theme_mode() -> str:
 
 
 MODE = theme_mode()
-PALETTE = _load_tokens().palette(MODE)
+_tokens = _load_tokens()
+PALETTE = _tokens.palette(MODE)
 _p = PALETTE
+
+# The sharing badge's glyph comes from the One Desk token, so app.py never spells it out.
+SHARING_GLYPH = _tokens.glyph("sharing")
 
 # Text and surfaces.
 INK = _p.ink

@@ -5178,6 +5178,54 @@ class MatrixModelsTestCase(unittest.TestCase):
             )
         )
 
+    def test_selected_detail_buy_price_shares_the_fair_value_label_row(self) -> None:
+        class _Font:
+            @staticmethod
+            def measure(text: str) -> int:
+                return 6 * len(text)
+
+        class _Canvas:
+            def __init__(self) -> None:
+                self.texts: list[tuple[float, float, str, str]] = []
+
+            def create_line(self, *_args, **_kwargs) -> None:
+                return None
+
+            def create_oval(self, *_args, **_kwargs) -> None:
+                return None
+
+            def create_text(self, x, y, **kwargs) -> None:
+                self.texts.append((x, y, kwargs.get("text", ""), kwargs.get("anchor", "")))
+
+        harness = SimpleNamespace(
+            detail_font=_Font(),
+            detail_font_bold=_Font(),
+            _draw_detail_notch=OptionsMatrixApp._draw_detail_notch,
+            _draw_detail_dot=OptionsMatrixApp._draw_detail_dot,
+        )
+        harness._draw_detail_lettered_dot = lambda *args, **kwargs: OptionsMatrixApp._draw_detail_lettered_dot(
+            harness, *args, **kwargs
+        )
+        snapshot = _snapshot(100.0, 1.0, 0.50, 0.10)
+        snapshot.fair_value_edge_curve_mid = 0.55
+        snapshot.fair_value_edge_curve_edge = 0.10
+        snapshot.fair_value_edge_curve_buy_endpoint = 0.45
+        snapshot.fair_value_edge_curve_sell_endpoint = 0.65
+        snapshot.opportunity_direction = SIGNAL_BUY
+        snapshot.opportunity_price = 0.54  # right next to fair value
+        canvas = _Canvas()
+
+        OptionsMatrixApp._draw_fair_value_edge_curve(
+            harness, canvas, snapshot, lambda value: value * 100.0, 48, low=0, high=600
+        )
+
+        labels = sorted((x, y, text) for x, y, text, anchor in canvas.texts if anchor == "s")
+        self.assertEqual([text for _x, _y, text in labels], ["0.54", "FV 0.55"])
+        # One row just above the FV line, clear of the ANOM lane's line at y=22.
+        self.assertEqual({y for _x, y, _text in labels}, {40})
+        (left_x, _left_y, left_text), (right_x, _right_y, right_text) = labels
+        self.assertGreaterEqual((right_x - 3 * len(right_text)) - (left_x + 3 * len(left_text)), 6)
+
     def test_selected_detail_spreads_close_bid_mid_ask_labels_apart(self) -> None:
         class _Font:
             @staticmethod
@@ -5235,7 +5283,9 @@ class MatrixModelsTestCase(unittest.TestCase):
             _draw_detail_dot=OptionsMatrixApp._draw_detail_dot,
         )
         harness._detail_values = lambda snap: OptionsMatrixApp._detail_values(harness, snap)
-        harness._draw_fair_value_edge_curve = lambda *args: OptionsMatrixApp._draw_fair_value_edge_curve(harness, *args)
+        harness._draw_fair_value_edge_curve = lambda *args, **kwargs: OptionsMatrixApp._draw_fair_value_edge_curve(
+            harness, *args, **kwargs
+        )
         harness._draw_detail_lettered_dot = lambda *args, **kwargs: OptionsMatrixApp._draw_detail_lettered_dot(
             harness, *args, **kwargs
         )

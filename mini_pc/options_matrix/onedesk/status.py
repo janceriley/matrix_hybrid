@@ -26,7 +26,7 @@ RETRYING: str = _T.glyph("retrying")    # ↻
 ATTENTION: str = _T.glyph("attention")  # ⚠
 FAILED: str = _T.glyph("failed")        # ✕
 ERROR: str = _T.glyph("error")          # !
-SHARING: str = _T.glyph("sharing")      # ⇄
+SHARING: str = _T.glyph("sharing")      # ⮂ (⇄ read as "=" at 9 pt)
 MISSING: str = _T.glyph("missing")      # —
 SEP: str = _T.format_token("separator")
 
@@ -212,7 +212,7 @@ def error(word: str, detail: str | None = None) -> Status:
 
 
 def sharing(viewers: int) -> Status:
-    """``⇄ 1 VIEWER`` / ``⇄ 0 VIEWERS`` (an idle share is shown as off)."""
+    """``⮂ 1 VIEWER`` / ``⮂ 0 VIEWERS`` (an idle share is shown as off)."""
     word = f"{viewers} viewer" if viewers == 1 else f"{viewers} viewers"
     return Status(word, Kind.NEUTRAL if viewers else Kind.OFF, None, SHARING)
 

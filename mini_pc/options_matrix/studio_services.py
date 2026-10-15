@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Iterable
 
 from .models import QUOTE_KIND_UNDERLYING, QuoteSnapshot
+from .one_desk import SHARING_GLYPH
 from .recorder import MARKET_TIMEZONE
 from .share_protocol import (
     PROTOCOL_VERSION,
@@ -226,11 +227,11 @@ class StudioServices:
 
     def share_indicator_text(self) -> str:
         if not self.app.studio_settings.share_enabled:
-            return "⇄ SHARING OFF"
+            return f"{SHARING_GLYPH} SHARING OFF"
         if self.share_error or self.server is None:
-            return "⇄ SHARING ERROR"
+            return f"{SHARING_GLYPH} SHARING ERROR"
         count = len(self.viewers())
-        return f"⇄ {count} VIEWER" if count == 1 else f"⇄ {count} VIEWERS"
+        return f"{SHARING_GLYPH} {count} VIEWER" if count == 1 else f"{SHARING_GLYPH} {count} VIEWERS"
 
     def _viewers_changed_threadsafe(self) -> None:
         self._viewers_changed = True
