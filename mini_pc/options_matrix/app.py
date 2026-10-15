@@ -2889,7 +2889,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             connection,
             textvariable=self.share_indicator_var,
             foreground=NAVY,
-            width=16,
+            width=19,  # fits ⇄ SHARING ERROR with a character to spare
             anchor="center",
         )
         self.share_indicator_label.grid(row=0, column=7, sticky="e", padx=(6, 0))
@@ -5367,40 +5367,38 @@ class OptionsMatrixApp(PositionAlertsMixin):
         column_gap = 12.0
         outer_padding = 10.0
         column_width = (width - (outer_padding * 2) - (column_gap * 2)) / 3
-        row_height = 132.0
+        row_gap = 14.0
+        legend_items = matrix_cell_visual_legend_items()
         grouped_items = (
             (
                 "FILL / POSITION / TAB STATE",
-                [
-                    item
-                    for item in matrix_cell_visual_legend_items()
-                    if item.category in {"fill", "position", "state"}
-                ],
+                [item for item in legend_items if item.category in {"fill", "position", "state"}],
             ),
-            ("SUBSCRIPTION BORDER", [item for item in matrix_cell_visual_legend_items() if item.category == "border"]),
+            ("SUBSCRIPTION BORDER", [item for item in legend_items if item.category == "border"]),
             (
                 "CELL TEXT / LIQUIDITY",
-                [
-                    item
-                    for item in matrix_cell_visual_legend_items()
-                    if item.category in {"text", "liquidity"}
-                ],
+                [item for item in legend_items if item.category in {"text", "liquidity"}],
             ),
         )
-        panel_bottom = max(
-            449.0,
-            38.0 + (max(len(items) for _title, items in grouped_items) * row_height) + 4.0,
+        # Every sample box is wide enough for the widest sample text, such as EXIT BUY 0.38.
+        measure_sample = getattr(self.detail_font, "measure", None)
+        sample_width = max(
+            [92.0]
+            + [measure_sample(item.sample_text) + 12.0 for item in legend_items if measure_sample and item.sample_text]
         )
+        panels: list[tuple[int, float]] = []
+        columns_bottom = 38.0
         for column, (title, items) in enumerate(grouped_items):
             column_left = outer_padding + column * (column_width + column_gap)
-            canvas.create_rectangle(
+            panel = canvas.create_rectangle(
                 column_left,
                 4,
                 column_left + column_width,
-                panel_bottom,
+                449.0,  # stretched to the tallest column below
                 fill=RAISED,
                 outline=RULE,
             )
+            panels.append((panel, column_left))
             canvas.create_text(
                 column_left + 8,
                 16,
@@ -5409,14 +5407,13 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 font=getattr(self, "header_font", self.grid_font_bold),
                 anchor="w",
             )
-            for row, item in enumerate(items):
-                y = 38 + (row * row_height)
+            y = 38.0
+            for item in items:
                 sample_left = column_left + 8
-                sample_right = sample_left + 92
+                sample_right = sample_left + sample_width
                 sample_bottom = y + 30
-                sample_fill = GRID_BG if item.category == "position" else item.fill or GRID_BG
                 rectangle_options: dict[str, object] = {
-                    "fill": sample_fill,
+                    "fill": item.fill or GRID_BG,
                     "outline": item.outline or GRID_LINE,
                     "width": item.border_width,
                     "dash": item.dash,
@@ -5436,20 +5433,6 @@ class OptionsMatrixApp(PositionAlertsMixin):
                     canvas.create_text(
                         sample_left + POSITION_ICON_LANE_WIDTH + 4, y + 15,
                         text=item.sample_text, fill=INK, font=self.detail_font, anchor="w",
-                    )
-                elif item.category == "position":
-                    sample_middle = (sample_left + sample_right) / 2.0
-                    canvas.create_rectangle(
-                        sample_middle, y, sample_right, sample_bottom,
-                        fill=item.fill, outline=GRID_LINE,
-                    )
-                    canvas.create_text(
-                        sample_middle + ((sample_right - sample_middle) / 2.0),
-                        y + 15,
-                        text=item.sample_text,
-                        fill=item.text_color,
-                        font=self.detail_font,
-                        anchor="c",
                     )
                 elif item.category == "liquidity":
                     canvas.create_text(
@@ -5521,23 +5504,32 @@ class OptionsMatrixApp(PositionAlertsMixin):
                         anchor="c",
                     )
                 text_left = sample_right + 8
-                canvas.create_text(
+                text_width = max(80, column_left + column_width - text_left - 8)
+                label_id = canvas.create_text(
                     text_left,
                     y,
                     text=item.label,
                     fill=INK,
                     font=getattr(self, "prose_bold_font", self.grid_font_bold),
                     anchor="nw",
+                    width=text_width,
                 )
-                canvas.create_text(
+                description_id = canvas.create_text(
                     text_left,
-                    y + 16,
+                    (canvas.bbox(label_id) or (0, 0, 0, y + 16))[3],
                     text=item.description,
                     fill=MUTED,
                     font=getattr(self, "prose_font", self.detail_font),
                     anchor="nw",
-                    width=max(80, column_left + column_width - text_left - 8),
+                    width=text_width,
                 )
+                # The next entry starts below this one's wrapped text, however long it is.
+                text_bottom = (canvas.bbox(description_id) or (0, 0, 0, y + 16))[3]
+                y = max(sample_bottom, text_bottom) + row_gap
+            columns_bottom = max(columns_bottom, y - row_gap)
+        panel_bottom = max(449.0, columns_bottom + 10.0)
+        for panel, column_left in panels:
+            canvas.coords(panel, column_left, 4, column_left + column_width, panel_bottom)
         content_bbox = canvas.bbox("all")
         content_bottom = content_bbox[3] + 8 if content_bbox is not None else panel_bottom + 4
         canvas.configure(scrollregion=(0, 0, width, max(panel_bottom + 4, content_bottom)))
@@ -6943,22 +6935,34 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 anchor="w",
             )
 
+        dots_by_lane: dict[str, list[tuple[float, str, str]]] = {}
         for lane, value, color, label in values:
             if value is None:
                 continue
             y = lane_y[lane]
             x = value_to_x(value)
             canvas.create_oval(x - 4, y - 4, x + 4, y + 4, fill=color, outline=color)
+            dots_by_lane.setdefault(lane, []).append((x, color, label))
+        measure_label = getattr(self.detail_font, "measure", lambda text: 7 * len(text))
+        for lane, dots in dots_by_lane.items():
+            # Close bid, mid and ask prices spread their labels apart instead of overprinting them.
+            label_xs = one_desk.spread_labels(
+                [x for x, _color, _label in dots],
+                [measure_label(label) for _x, _color, label in dots],
+                low=left,
+                high=width - 4,
+            )
             anchor = "s" if lane == "ANOM" else "n"
             offset = -7 if anchor == "s" else 7
-            canvas.create_text(
-                x,
-                y + offset,
-                text=label,
-                fill=color,
-                font=self.detail_font,
-                anchor=anchor,
-            )
+            for label_x, (_x, color, label) in zip(label_xs, dots):
+                canvas.create_text(
+                    label_x,
+                    lane_y[lane] + offset,
+                    text=label,
+                    fill=color,
+                    font=self.detail_font,
+                    anchor=anchor,
+                )
 
     def _detail_values(self, snapshot: MonitoredSideSnapshot) -> list[tuple[str, float | None, str, str]]:
         values: list[tuple[str, float | None, str, str]] = []

@@ -51,6 +51,25 @@ class OneDeskBridgeTestCase(unittest.TestCase):
         self.assertEqual(MATH_SOURCE_FILES, ("models.py", "app.py"))
         self.assertNotIn("one_desk.py", MATH_SOURCE_FILES)
 
+    def test_spread_labels_leaves_labels_that_fit_where_they_are(self) -> None:
+        self.assertEqual(one_desk.spread_labels([100, 200, 300], [60, 30, 60], low=0, high=500), [100, 200, 300])
+        self.assertEqual(one_desk.spread_labels([], [], low=0, high=500), [])
+
+    def test_spread_labels_spreads_close_bid_mid_ask_evenly_around_them(self) -> None:
+        # Bid, mid and ask a pixel apart: the mid label stays put, the others move out.
+        placed = one_desk.spread_labels([299, 300, 301], [60, 30, 60], low=0, high=600, gap=6)
+        self.assertEqual([round(x, 6) for x in placed], [249.0, 300.0, 351.0])
+        widths = [60, 30, 60]
+        for left in range(2):
+            gap = (placed[left + 1] - widths[left + 1] / 2) - (placed[left] + widths[left] / 2)
+            self.assertGreaterEqual(round(gap, 6), 6)
+
+    def test_spread_labels_keeps_order_and_stays_inside_the_bounds(self) -> None:
+        placed = one_desk.spread_labels([72, 71, 70], [40, 40, 40], low=50, high=600, gap=4)
+        self.assertEqual([round(x, 6) for x in placed], [158.0, 114.0, 70.0])  # by position, not by list order
+        placed = one_desk.spread_labels([590, 595, 598], [40, 40, 40], low=0, high=600, gap=4)
+        self.assertEqual([round(x, 6) for x in placed], [492.0, 536.0, 580.0])
+
     @unittest.skipUnless(TK_AVAILABLE, "needs a desktop session with Tk")
     def test_caps_labels_style_only_fixed_all_caps_labels(self) -> None:
         root = tk.Tk()

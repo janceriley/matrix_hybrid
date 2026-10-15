@@ -101,6 +101,8 @@ LINK_LIVE = "live"
 LINK_RETRYING = "retrying"
 LINK_STOPPED = "stopped"
 
+HEALTH_NOT_CONNECTED = "Mini PC status will appear here once connected."
+
 TabIdentity = tuple[str, str, str]
 
 
@@ -190,7 +192,7 @@ class ViewerApp(OptionsMatrixApp):
             connection,
             textvariable=self.connection_var,
             foreground=CONNECTION_OFFLINE_COLOR,
-            width=24,
+            width=29,  # fits ◐ MINI PC: NO MARKET DATA with a character to spare
             anchor="center",
         )
         self.connection_status_label.grid(row=0, column=1, sticky="w", padx=(10, 4))
@@ -221,7 +223,7 @@ class ViewerApp(OptionsMatrixApp):
         self.recorder_indicator_label.grid(row=0, column=7, sticky="e")
         self._install_tooltip(self.recorder_indicator_label, "Recording runs on the mini PC.")
 
-        self.health_var = tk.StringVar(value="Mini PC status will appear here once connected.")
+        self.health_var = tk.StringVar(value=HEALTH_NOT_CONNECTED)
         health_label = ttk.Label(connection, textvariable=self.health_var, foreground=MUTED, anchor="w")
         health_label.grid(row=1, column=0, columnspan=8, sticky="ew", pady=(2, 0))
 
@@ -309,6 +311,8 @@ class ViewerApp(OptionsMatrixApp):
             text = "This tab is waiting for live data on the mini PC."
         elif self._link_state == LINK_STOPPED:
             text = self._link_message
+        elif self._link_state == LINK_OFFLINE:
+            text = "Not connected to the mini PC. Click Connect to show live data."
         else:
             text = "No live data from the mini PC. Reconnecting ..."
         canvas.create_text(
@@ -391,9 +395,14 @@ class ViewerApp(OptionsMatrixApp):
 
     def _disconnect(self) -> None:
         self._stop_client()
+        # Drop anything the stopped link had already queued, so a late
+        # "connecting" or welcome cannot bring the badge back.
+        self._inbound = queue.Queue()
         self._link_state = LINK_OFFLINE
         self._link_message = "Disconnected from the mini PC."
         self._link_lost("Disconnected from the mini PC.")
+        self.health_var.set(HEALTH_NOT_CONNECTED)
+        self._set_connected_state(False)
 
     def _start_client(self) -> None:
         self._stop_client()
@@ -632,7 +641,14 @@ class ViewerApp(OptionsMatrixApp):
         studio_connected = bool(schwab.get("connected"))
         changed = studio_connected != self.remote.studio_connected
         self.remote.studio_connected = studio_connected
-        self.auth_status_var.set(str(auth.get("badge", "")))
+        auth_badge = str(auth.get("badge", ""))
+        self.auth_status_var.set(auth_badge)
+        auth_label = getattr(self, "auth_status_label", None)
+        if auth_label is not None:
+            # The same colors as on the mini PC: red once re-authorization is overdue.
+            auth_label.configure(
+                foreground=CONNECTION_FAILED_COLOR if auth_badge == "⚠ AUTH DUE" else CONNECTION_PENDING_COLOR
+            )
         rows = recording.get("rows_written")
         parts = [
             "DEMO DATA" if message.get("demo") else "",

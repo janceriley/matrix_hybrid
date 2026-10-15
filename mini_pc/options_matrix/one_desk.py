@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
+from collections.abc import Sequence
 from dataclasses import dataclass
 from tkinter import font as tkfont
 from tkinter import ttk
@@ -171,11 +172,60 @@ def draw_hatch(canvas: tk.Canvas, x0: float, y0: float, x1: float, y1: float, *,
     return tk_theme.draw_hatch(canvas, x0, y0, x1, y1, color=HATCH, spacing=spacing, tags=tags)
 
 
+def spread_labels(centers: Sequence[float], widths: Sequence[float], *, low: float, high: float,
+                  gap: float = 6.0) -> list[float]:
+    """New centers for labels on one line, moved apart just enough that none overlap.
+
+    The detail chart prints bid, mid and ask under their dots; when the prices
+    are close, a crowded run of labels spreads out evenly around its dots.
+    Labels keep their left-to-right order and stay inside ``low``..``high``
+    when they fit.
+    """
+
+    def offsets(run: list[int]) -> list[float]:
+        # Each label's center relative to the run's first label, packed ``gap`` apart.
+        steps = [0.0]
+        for left, right in zip(run, run[1:]):
+            steps.append(steps[-1] + (widths[left] + widths[right]) / 2 + gap)
+        return steps
+
+    def first_center(run: list[int]) -> float:
+        # Where the run's labels move least, all told (least squares).
+        return sum(centers[index] - step for index, step in zip(run, offsets(run))) / len(run)
+
+    def right_edge(run: list[int]) -> float:
+        return first_center(run) + offsets(run)[-1] + widths[run[-1]] / 2
+
+    runs: list[list[int]] = []
+    for index in sorted(range(len(centers)), key=lambda i: centers[i]):
+        runs.append([index])
+        while len(runs) > 1 and first_center(runs[-1]) - widths[runs[-1][0]] / 2 < right_edge(runs[-2]) + gap:
+            runs[-2:] = [runs[-2] + runs[-1]]
+
+    firsts = [first_center(run) for run in runs]
+    edge = low  # push runs right off the low bound, then left off the high bound
+    for number, run in enumerate(runs):
+        firsts[number] = max(firsts[number], edge + widths[run[0]] / 2)
+        edge = firsts[number] + offsets(run)[-1] + widths[run[-1]] / 2 + gap
+    edge = high
+    for number in reversed(range(len(runs))):
+        run = runs[number]
+        firsts[number] = min(firsts[number], edge - offsets(run)[-1] - widths[run[-1]] / 2)
+        edge = firsts[number] - widths[run[0]] / 2 - gap
+
+    placed = [float(center) for center in centers]
+    for run, first in zip(runs, firsts):
+        for index, step in zip(run, offsets(run)):
+            placed[index] = first + step
+    return placed
+
+
 __all__ = [name for name in dir() if name.isupper()] + [
     "MatrixFonts",
     "apply",
     "caps_labels",
     "draw_hatch",
     "matrix_fonts",
+    "spread_labels",
     "theme_mode",
 ]

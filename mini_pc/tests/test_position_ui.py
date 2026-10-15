@@ -31,6 +31,7 @@ from options_matrix.models import (
 from options_matrix.position_ui import (
     POSITION_QUOTE_MAX_AGE_SECONDS,
     PositionAlertsMixin,
+    average_entry_from_text,
     position_exit_for_selection,
     position_quotes_live,
     position_record_for_selection,
@@ -311,6 +312,17 @@ class PositionUiIntegrationTests(unittest.TestCase):
         text, color = OptionsMatrixApp._cell_signal_text(self.host, self.snapshot, muted=True)
         self.assertEqual((text, color), ("EXIT SELL 0.58", SELL_COLOR))
         self.assertEqual(compact_matrix_signal_text(text), "XS.58")
+
+    def test_average_entry_errors_are_plain_words_not_python_messages(self):
+        self.assertEqual(average_entry_from_text(" 0.485 "), 0.485)
+        for text in ("abc", "", "nan", "inf", "0.38.1"):
+            with self.assertRaises(ValueError) as caught:
+                average_entry_from_text(text)
+            self.assertEqual(str(caught.exception), "Enter your average entry as a number, such as 0.38.")
+        for text in ("0", "-0.25", "0.00001"):
+            with self.assertRaises(ValueError) as caught:
+                average_entry_from_text(text)
+            self.assertEqual(str(caught.exception), "Enter an average entry above zero.")
 
     def test_exit_target_label_preserves_subcent_average_precision(self):
         self.set_mid(0.385)

@@ -78,6 +78,19 @@ def position_price(price):
     return format_price(price)
 
 
+def average_entry_from_text(text):
+    """The Position… editor's average entry, or a ValueError that says in plain words what to fix."""
+    try:
+        price = float(text)
+    except ValueError:
+        price = math.nan
+    if not math.isfinite(price):
+        raise ValueError("Enter your average entry as a number, such as 0.38.")
+    if round(price, 4) <= 0:
+        raise ValueError("Enter an average entry above zero.")
+    return price
+
+
 class PositionAlertsMixin:
     def _initialize_positions(self, settings_root):
         self._positions_path = settings_root / "positions.json" if settings_root is not None else position_store_path()
@@ -301,7 +314,7 @@ class PositionAlertsMixin:
         ttk.Label(box, textvariable=error, foreground=ERROR_TEXT, wraplength=380).grid(row=5, column=0, columnspan=2, sticky="w")
 
         def draft():
-            return PositionRecord(key, side.get().upper(), float(average.get()), armed.get())
+            return PositionRecord(key, side.get().upper(), average_entry_from_text(average.get()), armed.get())
 
         def preview(*_args):
             try:

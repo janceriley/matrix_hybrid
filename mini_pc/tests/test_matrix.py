@@ -5178,6 +5178,79 @@ class MatrixModelsTestCase(unittest.TestCase):
             )
         )
 
+    def test_selected_detail_spreads_close_bid_mid_ask_labels_apart(self) -> None:
+        class _Font:
+            @staticmethod
+            def measure(text: str) -> int:
+                return 6 * len(text)
+
+        class _Canvas:
+            def __init__(self) -> None:
+                self.dots: list[float] = []
+                self.texts: list[tuple[float, float, str, str]] = []
+
+            def winfo_width(self) -> int:
+                return 600
+
+            def winfo_height(self) -> int:
+                return 104
+
+            def delete(self, *_args) -> None:
+                return None
+
+            def create_line(self, *_args, **_kwargs) -> None:
+                return None
+
+            def create_oval(self, x0, _y0, x1, _y1, **_kwargs) -> None:
+                self.dots.append((x0 + x1) / 2)
+
+            def create_text(self, x, y, **kwargs) -> None:
+                self.texts.append((x, y, kwargs.get("text", ""), kwargs.get("anchor", "")))
+
+        # A wide fair-value range squeezes a 0.02-wide market into a few pixels.
+        snapshot = _snapshot(100.0, 1.0, 0.50, 0.02)
+        snapshot.fair_value_edge_curve_mid = 0.50
+        snapshot.fair_value_edge_curve_edge = 0.40
+        snapshot.fair_value_edge_curve_buy_endpoint = 0.10
+        snapshot.fair_value_edge_curve_sell_endpoint = 0.90
+        tab = SimpleNamespace(is_stale=False, underlying_price_hint=100.5)
+        canvas = _Canvas()
+        harness = SimpleNamespace(
+            detail_canvas=canvas,
+            detail_font=_Font(),
+            detail_font_bold=_Font(),
+            grid_font=_Font(),
+            signal_method=DEFAULT_SIGNAL_METHOD,
+            formula_settings=DEFAULT_FORMULA_SETTINGS,
+            applied_matrix_input=None,
+            expiration_var=SimpleNamespace(get=lambda: "2030-01-17"),
+            selected_header_var=SimpleNamespace(set=lambda _value: None),
+            selected_cell_key=(100.0, 1.0),
+            underlying_quote=None,
+            _active_tab=lambda: tab,
+            _tab_cell_snapshot=lambda _tab, _key: snapshot,
+            _tab_cell_selection=lambda _tab, _key: snapshot.selection,
+            _quote_label=OptionsMatrixApp._quote_label,
+            _draw_detail_notch=OptionsMatrixApp._draw_detail_notch,
+            _draw_detail_dot=OptionsMatrixApp._draw_detail_dot,
+        )
+        harness._detail_values = lambda snap: OptionsMatrixApp._detail_values(harness, snap)
+        harness._draw_fair_value_edge_curve = lambda *args: OptionsMatrixApp._draw_fair_value_edge_curve(harness, *args)
+        harness._draw_detail_lettered_dot = lambda *args, **kwargs: OptionsMatrixApp._draw_detail_lettered_dot(
+            harness, *args, **kwargs
+        )
+
+        OptionsMatrixApp._redraw_selected_detail(harness)
+
+        quote_labels = sorted((x, text) for x, _y, text, anchor in canvas.texts if anchor == "n")
+        self.assertEqual([text for _x, text in quote_labels], ["B 0.49 (10)", "0.50", "A 0.51 (10)"])
+        self.assertLess(max(canvas.dots) - min(canvas.dots), 15)  # the prices really are crowded
+        for (left_x, left_text), (right_x, right_text) in zip(quote_labels, quote_labels[1:]):
+            with self.subTest(left=left_text, right=right_text):
+                self.assertGreaterEqual(
+                    (right_x - 3 * len(right_text)) - (left_x + 3 * len(left_text)), 6
+                )
+
     def test_cell_signal_text_marks_unavailable_fair_value_in_amber(self) -> None:
         harness = SimpleNamespace(signal_method=DEFAULT_SIGNAL_METHOD)
         snapshot = _snapshot(100.0, 1.0, 0.50, 0.10)
