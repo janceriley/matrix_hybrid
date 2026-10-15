@@ -14,7 +14,6 @@ from collections.abc import Sequence as SequenceABC
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from tkinter import font as tkfont
 from tkinter import messagebox
 from tkinter import ttk
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
@@ -80,6 +79,56 @@ from .studio_settings import (
     save_studio_settings,
     studio_app_data_dir,
 )
+# Colors, fonts and the ttk theme come from the One Desk bridge (one_desk.py), outside
+# this fingerprinted file, so restyling never makes the work PC say UPDATE NEEDED.
+from . import one_desk
+from .one_desk import (
+    ANOMALY_COLOR,
+    ASK_COLOR,
+    BID_COLOR,
+    BUY_COLOR,
+    CONNECTION_FAILED_COLOR,
+    CONNECTION_LIVE_COLOR,
+    CONNECTION_OFFLINE_COLOR,
+    CONNECTION_PENDING_COLOR,
+    FAINT,
+    FAIR_VALUE_COLOR,
+    GRID_BG,
+    GRID_LINE,
+    HEADER_BG,
+    INK,
+    INK_2,
+    ITM_BG,
+    ITM_SELECTED_BG,
+    ITM_TEXT,
+    LIQUIDITY_OVERFLOW_COLOR,
+    LIQUIDITY_TRACK_COLOR,
+    LIQUIDITY_WIDTH_COLOR,
+    MID_COLOR,
+    MISSING_BG,
+    MUTED,
+    NAVY,
+    POSITION_BUY_BG,
+    POSITION_ICON_COLOR,
+    POSITION_SELL_BG,
+    RAISED,
+    RECORDER_ACTIVE_COLOR,
+    RECORDER_OFF_COLOR,
+    RECORDER_PENDING_COLOR,
+    RULE,
+    SELECTED_BG,
+    SELL_COLOR,
+    SUBSCRIPTION_CONFIRMED_COLOR,
+    SUBSCRIPTION_CONTEXT_COLOR,
+    SUBSCRIPTION_FAILED_COLOR,
+    SUBSCRIPTION_PENDING_COLOR,
+    SUBSCRIPTION_RECONCILING_COLOR,
+    SUNKEN,
+    SURFACE,
+    TOOLTIP_BG,
+    TOOLTIP_FG,
+    UP_TINT,
+)
 if TYPE_CHECKING:
     from .studio_services import StudioServices
 
@@ -113,40 +162,7 @@ LIQUIDITY_GAUGE_MIN_WIDTH = 22.0
 LIQUIDITY_COMPACT_SIGNAL_THRESHOLD = 145.0
 POSITION_ICON_LANE_WIDTH = 12.0
 POSITION_ICON_TEXT = "\u25cf"
-POSITION_ICON_COLOR = "#2563eb"
-
-GRID_LINE = "#111111"
-GRID_BG = "#ffffff"
-HEADER_BG = "#f3f5f7"
-SELECTED_BG = "#e9f2ff"
-MISSING_BG = "#f8f9fb"
-ITM_BG = "#e5e7eb"
-ITM_SELECTED_BG = "#d1d5db"
-ITM_TEXT = "#4b5563"
-SUBSCRIPTION_CONFIRMED_COLOR = "#2e7d32"
-SUBSCRIPTION_PENDING_COLOR = "#2563eb"
-SUBSCRIPTION_RECONCILING_COLOR = "#7c3aed"
-SUBSCRIPTION_CONTEXT_COLOR = "#d97706"
-SUBSCRIPTION_FAILED_COLOR = "#b42318"
-RECORDER_OFF_COLOR = "#667085"
-RECORDER_ACTIVE_COLOR = "#b42318"
-RECORDER_PENDING_COLOR = "#b88a0b"
-CONNECTION_OFFLINE_COLOR = "#667085"
-CONNECTION_LIVE_COLOR = "#2e7d32"
-CONNECTION_PENDING_COLOR = "#b88a0b"
-CONNECTION_FAILED_COLOR = "#b42318"
-BUY_COLOR = "#198754"
-SELL_COLOR = "#b42318"
-ANOMALY_COLOR = "#7851A9"
-MID_COLOR = "#b88a0b"
-BID_COLOR = "#173a70"
-ASK_COLOR = "#b42318"
-FAIR_VALUE_COLOR = "#2563eb"
-LIQUIDITY_TRACK_COLOR = "#667085"
-LIQUIDITY_WIDTH_COLOR = "#667085"
-LIQUIDITY_OVERFLOW_COLOR = "#b54708"
-POSITION_BUY_BG = "#d1fadf"
-POSITION_SELL_BG = "#fee4e2"
+SUBSCRIPTION_HATCH_TAG = "subscription-hatch"
 RANK_SORT_NONE = "none"
 RANK_SORT_ASC = "asc"
 RANK_SORT_DESC = "desc"
@@ -379,6 +395,7 @@ class MatrixCellSubscriptionStyle:
     outline: str = GRID_LINE
     width: int = 1
     dash: tuple[int, ...] = ()
+    hatch: int = 0  # hatch spacing in pixels; 0 draws none
 
 
 def resolve_matrix_cell_subscription_style(
@@ -387,13 +404,20 @@ def resolve_matrix_cell_subscription_style(
     *,
     recurrent_failures: int = 0,
 ) -> MatrixCellSubscriptionStyle:
-    """Resolve leg subscription health without replacing moneyness cell fills."""
+    """Resolve leg subscription health without replacing moneyness cell fills.
+
+    Healthy cells keep the plain hairline. A failed direct leg hatches the cell
+    (denser when the failure recurs) instead of outlining it in red.
+    """
     direct = {str(state).strip().lower() for state in direct_states}
     context = {str(state).strip().lower() for state in context_states}
     if "failed" in direct:
         return MatrixCellSubscriptionStyle(
-            outline=SUBSCRIPTION_FAILED_COLOR,
-            width=3 if recurrent_failures >= 2 else 2,
+            hatch=(
+                one_desk.RECURRENT_FAILED_HATCH_SPACING
+                if recurrent_failures >= 2
+                else one_desk.FAILED_HATCH_SPACING
+            ),
         )
     if direct & {"pending_subscribe", "pending_unsubscribe"}:
         return MatrixCellSubscriptionStyle(outline=SUBSCRIPTION_PENDING_COLOR, width=2)
@@ -409,7 +433,7 @@ def resolve_matrix_cell_subscription_style(
             width=2,
             dash=(3, 2),
         )
-    return MatrixCellSubscriptionStyle(outline=SUBSCRIPTION_CONFIRMED_COLOR)
+    return MatrixCellSubscriptionStyle()
 
 
 @dataclass(frozen=True)
@@ -507,7 +531,8 @@ class MatrixCellVisualLegendItem:
     width: int = 1
     dash: tuple[int, ...] = ()
     sample_text: str = ""
-    text_color: str = "#111111"
+    text_color: str = INK
+    hatch: int = 0
 
     @property
     def border_width(self) -> int:
@@ -616,43 +641,43 @@ def matrix_cell_visual_legend_items() -> tuple[MatrixCellVisualLegendItem, ...]:
     """Return every visual matrix-cell state shown in the Settings guide."""
     return (
         MatrixCellVisualLegendItem(
-            "fill_otm", "fill", "White fill", "Normal quoted OTM spread.", fill=GRID_BG, sample_text="100/101"
+            "fill_otm", "fill", "Plain fill", "Normal quoted OTM spread.", fill=GRID_BG, sample_text="100/101"
         ),
         MatrixCellVisualLegendItem(
-            "fill_selected_otm", "fill", "Pale-blue fill", "Selected OTM cell.", fill=SELECTED_BG, sample_text="100/101"
+            "fill_selected_otm", "fill", "Selected fill", "Selected OTM cell.", fill=SELECTED_BG, sample_text="100/101"
         ),
         MatrixCellVisualLegendItem(
-            "fill_itm", "fill", "Gray fill", "At least one leg is ITM: displayed and recorded, but muted and not aggregate-actionable.", fill=ITM_BG, sample_text="100/101", text_color=ITM_TEXT
+            "fill_itm", "fill", "ITM fill", "At least one leg is ITM: displayed and recorded, but muted and not aggregate-actionable.", fill=ITM_BG, sample_text="100/101", text_color=ITM_TEXT
         ),
         MatrixCellVisualLegendItem(
-            "fill_selected_itm", "fill", "Dark-gray fill", "Selected ITM cell.", fill=ITM_SELECTED_BG, sample_text="100/101", text_color=ITM_TEXT
+            "fill_selected_itm", "fill", "Selected ITM fill", "Selected ITM cell.", fill=ITM_SELECTED_BG, sample_text="100/101", text_color=ITM_TEXT
         ),
         MatrixCellVisualLegendItem(
-            "fill_missing", "fill", "Near-white fill", "No complete spread exists for this strike/width; the cell is blank.", fill=MISSING_BG
+            "fill_missing", "fill", "Blank cell", "No complete spread exists for this strike/width; the cell is blank.", fill=MISSING_BG
         ),
         MatrixCellVisualLegendItem(
-            "position_saved", "position", "Blue position dot", "A position is saved for this exact ticker, expiration, side, and pair. The dot remains while its exit alert is paused and disappears when the position is deleted. Click the cell and use Position to edit it.", fill=GRID_BG, sample_text="100/101", text_color=POSITION_ICON_COLOR
+            "position_saved", "position", "Navy position dot", "A position is saved for this exact ticker, expiration, side, and pair. The dot remains while its exit alert is paused and disappears when the position is deleted. Click the cell and use Position to edit it.", fill=GRID_BG, sample_text="100/101", text_color=POSITION_ICON_COLOR
         ),
         MatrixCellVisualLegendItem(
             "position_exit", "position", "Position exit target", "A saved position reached its target using your average entry and the configured width edge. EXIT BUY / EXIT SELL (dense: XB / XS) illuminates even for ITM spreads. Normal fair-value signals remain in the Signals table and detail chart.", fill=POSITION_BUY_BG, sample_text="EXIT BUY 0.38", text_color=BUY_COLOR
         ),
         MatrixCellVisualLegendItem(
-            "border_confirmed", "border", "Thin green border", "Direct legs, hidden fair-value context, and underlying stream are confirmed.", fill=GRID_BG, outline=SUBSCRIPTION_CONFIRMED_COLOR, sample_text="LIVE"
+            "border_confirmed", "border", "Hairline border", "Direct legs, hidden fair-value context, and underlying stream are confirmed. Healthy cells stay plain.", fill=GRID_BG, outline=GRID_LINE, sample_text="LIVE"
         ),
         MatrixCellVisualLegendItem(
-            "border_pending", "border", "Thick blue border", "A direct leg is pending subscribe or unsubscribe acknowledgement.", fill=GRID_BG, outline=SUBSCRIPTION_PENDING_COLOR, width=2, sample_text="PENDING"
+            "border_pending", "border", "Thick navy border", "A direct leg is pending subscribe or unsubscribe acknowledgement.", fill=GRID_BG, outline=SUBSCRIPTION_PENDING_COLOR, width=2, sample_text="PENDING"
         ),
         MatrixCellVisualLegendItem(
-            "border_reconciling", "border", "Dashed purple border", "A direct leg is desired or unknown but not yet confirmed.", fill=GRID_BG, outline=SUBSCRIPTION_RECONCILING_COLOR, width=2, dash=(3, 2), sample_text="SYNC"
+            "border_reconciling", "border", "Dashed navy border", "A direct leg is desired or unknown but not yet confirmed.", fill=GRID_BG, outline=SUBSCRIPTION_RECONCILING_COLOR, width=2, dash=(3, 2), sample_text="SYNC"
         ),
         MatrixCellVisualLegendItem(
             "border_context", "border", "Dashed amber border", "Direct legs are usable, but hidden same-side fair-value context or the underlying stream is degraded.", fill=GRID_BG, outline=SUBSCRIPTION_CONTEXT_COLOR, width=2, dash=(3, 2), sample_text="FV CTX"
         ),
         MatrixCellVisualLegendItem(
-            "border_failed", "border", "Red border", "At least one direct leg subscription failed.", fill=GRID_BG, outline=SUBSCRIPTION_FAILED_COLOR, width=2, sample_text="FAILED"
+            "border_failed", "border", "Hatched cell", "At least one direct leg subscription failed. The hatch marks the cell's quotes as untrusted.", fill=GRID_BG, outline=GRID_LINE, hatch=one_desk.FAILED_HATCH_SPACING, sample_text="FAILED"
         ),
         MatrixCellVisualLegendItem(
-            "border_recurrent_failed", "border", "Extra-thick red border", "The direct-leg failure has recurred during this workspace generation.", fill=GRID_BG, outline=SUBSCRIPTION_FAILED_COLOR, width=3, sample_text="REPEAT"
+            "border_recurrent_failed", "border", "Dense hatch", "The direct-leg failure has recurred during this workspace generation.", fill=GRID_BG, outline=GRID_LINE, hatch=one_desk.RECURRENT_FAILED_HATCH_SPACING, sample_text="REPEAT"
         ),
         MatrixCellVisualLegendItem(
             "text_buy", "text", "Green B text", "Fair-value BUY signal: price is at or below fair minus configured edge. Dense cells shorten the example to B.42.", fill=GRID_BG, sample_text="B 0.42 (0.12)", text_color=BUY_COLOR
@@ -661,19 +686,19 @@ def matrix_cell_visual_legend_items() -> tuple[MatrixCellVisualLegendItem, ...]:
             "text_sell", "text", "Red S text", "Fair-value SELL signal: price is at or above fair plus configured edge. Dense cells shorten the example to S.68.", fill=GRID_BG, sample_text="S 0.68 (0.12)", text_color=SELL_COLOR
         ),
         MatrixCellVisualLegendItem(
-            "text_anomaly", "text", "Purple B/S text", "Anomaly signal took priority over the fair-value opportunity label.", fill=GRID_BG, sample_text="B 0.42 (0.12)", text_color=ANOMALY_COLOR
+            "text_anomaly", "text", "Violet B/S text", "Anomaly signal took priority over the fair-value opportunity label.", fill=GRID_BG, sample_text="B 0.42 (0.12)", text_color=ANOMALY_COLOR
         ),
         MatrixCellVisualLegendItem(
-            "text_neutral", "text", "Black market mid", "M is the synthetic market mid. Fair value is ready, but there is no actionable signal. Dense cells shorten the example to M.55; a minus sign appears only for a negative price.", fill=GRID_BG, sample_text="M 0.55"
+            "text_neutral", "text", "Ink market mid", "M is the synthetic market mid. Fair value is ready, but there is no actionable signal. Dense cells shorten the example to M.55; a minus sign appears only for a negative price.", fill=GRID_BG, sample_text="M 0.55"
         ),
         MatrixCellVisualLegendItem(
             "text_fv_waiting", "text", "Amber market + FV?", "M is the usable synthetic market mid; FV? means fair value is waiting for spot, enough remaining usable observations after the leave-one-out holdout, or complete atomic leave-one-out coverage. Dense cells use M.55?; select the cell to see the reason.", fill=GRID_BG, sample_text="M 0.55 FV?", text_color=SUBSCRIPTION_CONTEXT_COLOR
         ),
         MatrixCellVisualLegendItem(
-            "text_waiting", "text", "Gray ellipsis", "Waiting for the cell snapshot or its required quotes.", fill=GRID_BG, sample_text="...", text_color="#667085"
+            "text_waiting", "text", "Gray ellipsis", "Waiting for the cell snapshot or its required quotes.", fill=GRID_BG, sample_text="...", text_color=MUTED
         ),
         MatrixCellVisualLegendItem(
-            "text_no_mid", "text", "Gray double dash", "Snapshot exists, but no usable synthetic mid is available.", fill=GRID_BG, sample_text="--", text_color="#667085"
+            "text_no_mid", "text", "Gray double dash", "Snapshot exists, but no usable synthetic mid is available.", fill=GRID_BG, sample_text="--", text_color=MUTED
         ),
         MatrixCellVisualLegendItem(
             "text_itm_muted", "text", "Muted gray text", "ITM combo/signal text is informational and excluded from aggregate actionable signals.", fill=ITM_BG, sample_text="B 0.42 (0.12)", text_color=ITM_TEXT
@@ -690,7 +715,7 @@ def matrix_cell_visual_legend_items() -> tuple[MatrixCellVisualLegendItem, ...]:
             "liquidity_relative_size",
             "liquidity",
             "Bottom relative-support bars",
-            "Blue-left is bid size and red-right is ask size. Each synthetic size is the minimum available size across its two required leg sides. Both share a log scale capped at the visible same-side, exact-width curve's 90th percentile. Longer means more relative displayed support; this is not guaranteed execution or native complex-book depth.",
+            "The darker left half is bid size and the lighter right half is ask size. Each synthetic size is the minimum available size across its two required leg sides. Both share a log scale capped at the visible same-side, exact-width curve's 90th percentile. Longer means more relative displayed support; this is not guaranteed execution or native complex-book depth.",
             fill=GRID_BG,
             sample_text="0.55",
         ),
@@ -727,7 +752,7 @@ def matrix_cell_visual_legend_items() -> tuple[MatrixCellVisualLegendItem, ...]:
             sample_text="0.55",
         ),
         MatrixCellVisualLegendItem(
-            "state_stale", "state", "Stale overlay", "A cached tab has no live contents until RELOAD MATRIX completes.", fill="#eef0f3", outline="#4b5563", width=2, dash=(3, 2), sample_text="RELOAD MATRIX", text_color="#4b5563"
+            "state_stale", "state", "Stale overlay", "A cached tab has no live contents until Reload matrix completes.", fill=SUNKEN, outline=INK_2, width=2, dash=(3, 2), sample_text="Reload matrix", text_color=INK_2
         ),
     )
 
@@ -2524,6 +2549,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         demo: bool = False,
     ) -> None:
         self.root = tk.Tk()
+        self.theme = one_desk.apply(self.root)
         self.root.title(f"{self.window_title} - DEMO DATA" if demo else self.window_title)
         self.root.geometry("1260x760")
         self.root.minsize(1040, 620)
@@ -2670,12 +2696,17 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self.available_width_bands: tuple[float, ...] = ()
         self._width_band_availability_known = False
 
-        self.grid_font = tkfont.Font(family="Segoe UI", size=9)
-        self.grid_font_bold = tkfont.Font(family="Segoe UI", size=9, weight="bold")
-        self.detail_font = tkfont.Font(family="Segoe UI", size=8)
-        self.detail_font_bold = tkfont.Font(family="Segoe UI", size=8, weight="bold")
+        fonts = one_desk.matrix_fonts(self.theme)
+        self.grid_font = fonts.grid
+        self.grid_font_bold = fonts.grid_bold
+        self.detail_font = fonts.detail
+        self.detail_font_bold = fonts.detail_bold
+        self.header_font = fonts.header
+        self.prose_font = fonts.prose
+        self.prose_bold_font = fonts.prose_bold
 
         self._build_ui()
+        one_desk.caps_labels(self.root)
         self._load_cached_workspace_as_stale_tabs()
         self._set_connected_state(False)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -2710,7 +2741,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             connection,
             textvariable=getattr(self, "auth_status_var", self.connection_var),
             foreground=CONNECTION_PENDING_COLOR,
-            width=12,
+            width=13,
             anchor="center",
         )
         self.auth_status_label.grid(row=0, column=2, sticky="w", padx=(0, 4))
@@ -2718,9 +2749,9 @@ class OptionsMatrixApp(PositionAlertsMixin):
             self.auth_status_label,
             lambda: self._auth_tooltip_text(),
         )
-        self.connect_button = ttk.Button(connection, text="CONNECT", command=self._connect)
+        self.connect_button = ttk.Button(connection, text="Connect", command=self._connect)
         self.connect_button.grid(row=0, column=3, padx=(0, 6))
-        self.disconnect_button = ttk.Button(connection, text="DISCONNECT", command=self._disconnect)
+        self.disconnect_button = ttk.Button(connection, text="Disconnect", command=self._disconnect)
         self.disconnect_button.grid(row=0, column=4, padx=(0, 10))
         self.recorder_indicator_label = ttk.Label(
             connection,
@@ -2735,7 +2766,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self.market_data_quote_status_label = ttk.Label(
             connection,
             textvariable=self.market_data_quote_status_var,
-            foreground="#667085",
+            foreground=MUTED,
             anchor="w",
         )
         self.market_data_quote_status_label.grid(
@@ -2750,7 +2781,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             lambda: self._market_data_quote_tooltip_text(),
         )
 
-        ttk.Label(connection, text="STATUS", foreground="#667085").grid(
+        ttk.Label(connection, text="STATUS", foreground=MUTED).grid(
             row=2,
             column=0,
             sticky="w",
@@ -2759,7 +2790,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self.status_label = ttk.Label(
             connection,
             textvariable=getattr(self, "status_display_var", self.status_var),
-            foreground="#1f4d7a",
+            foreground=NAVY,
             anchor="w",
             width=1,
         )
@@ -2785,7 +2816,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         ticker_entry = ttk.Entry(controls, textvariable=self.ticker_var, width=10)
         ticker_entry.grid(row=0, column=1, sticky="ew", padx=(4, 6))
         ticker_entry.bind("<Return>", lambda _event: self._load_ticker())
-        ttk.Button(controls, text="LOAD", command=self._load_ticker).grid(row=0, column=2, padx=(0, 10))
+        ttk.Button(controls, text="Load", command=self._load_ticker).grid(row=0, column=2, padx=(0, 10))
 
         ttk.Label(controls, text="EXPIRY").grid(row=0, column=3, sticky="w")
         self.expiration_combo = ttk.Combobox(
@@ -2841,10 +2872,10 @@ class OptionsMatrixApp(PositionAlertsMixin):
             check.grid(row=0, column=index, padx=(0, 4))
             self.width_checkbuttons[band] = check
 
-        ttk.Button(controls, text="LOAD MATRIX", command=self._load_matrix).grid(
+        ttk.Button(controls, text="Load matrix", command=self._load_matrix).grid(
             row=0, column=13, padx=(0, 6)
         )
-        ttk.Button(controls, text="SETTINGS", command=self._open_settings_dialog).grid(
+        ttk.Button(controls, text="Settings…", command=self._open_settings_dialog).grid(
             row=0, column=14, padx=(0, 6)
         )
 
@@ -2857,13 +2888,13 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self.share_indicator_label = ttk.Label(
             connection,
             textvariable=self.share_indicator_var,
-            foreground="#1f4d7a",
+            foreground=NAVY,
             width=16,
             anchor="center",
         )
         self.share_indicator_label.grid(row=0, column=7, sticky="e", padx=(6, 0))
         self._install_tooltip(self.share_indicator_label, lambda: self._share_tooltip_text())
-        ttk.Button(connection, text="MINI PC…", command=self._open_studio_settings_dialog).grid(
+        ttk.Button(connection, text="Mini PC…", command=self._open_studio_settings_dialog).grid(
             row=0, column=8, padx=(6, 0)
         )
 
@@ -2892,19 +2923,25 @@ class OptionsMatrixApp(PositionAlertsMixin):
 
         self._build_matrix_controls(main)
 
-        matrix_title = tk.Frame(main, bd=1, relief="solid", bg=GRID_BG, height=28)
+        matrix_title = tk.Frame(
+            main, bd=0, highlightthickness=1, highlightbackground=GRID_LINE,
+            highlightcolor=GRID_LINE, bg=GRID_BG, height=28,
+        )
         matrix_title.grid(row=2, column=0, sticky="new")
         matrix_title.columnconfigure(1, weight=1)
-        tk.Label(matrix_title, text="SPREAD WIDTH MATRIX", bg=GRID_BG, font=self.grid_font).grid(
+        tk.Label(
+            matrix_title, text="SPREAD WIDTH MATRIX", bg=GRID_BG, fg=MUTED,
+            font=getattr(self, "header_font", self.grid_font),
+        ).grid(
             row=0, column=0, sticky="w", padx=(6, 12), pady=4
         )
         self.matrix_tabs_frame = tk.Frame(matrix_title, bg=GRID_BG)
         self.matrix_tabs_frame.grid(row=0, column=1, sticky="w", pady=2)
         tk.Label(
             matrix_title,
-            text="Stream border: green live | blue pending | amber FV context | red failed",
+            text="Stream: hairline live · navy pending · dashed amber FV context · hatch failed",
             bg=GRID_BG,
-            fg="#667085",
+            fg=MUTED,
             font=self.detail_font,
         ).grid(row=0, column=2, sticky="e", padx=(8, 6))
 
@@ -2968,8 +3005,10 @@ class OptionsMatrixApp(PositionAlertsMixin):
             detail,
             textvariable=self.selected_header_var,
             anchor="w",
-            bd=1,
-            relief="solid",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=GRID_LINE,
+            highlightcolor=GRID_LINE,
             font=self.grid_font,
             bg=GRID_BG,
         ).grid(row=0, column=0, sticky="ew")
@@ -2977,9 +3016,10 @@ class OptionsMatrixApp(PositionAlertsMixin):
             detail,
             height=104,
             background=GRID_BG,
-            highlightthickness=0,
-            bd=1,
-            relief="solid",
+            highlightthickness=1,
+            highlightbackground=GRID_LINE,
+            highlightcolor=GRID_LINE,
+            bd=0,
         )
         self.detail_canvas.grid(row=1, column=0, sticky="ew")
         self.detail_canvas.bind("<Configure>", lambda _event: self._redraw_selected_detail())
@@ -3035,7 +3075,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             ),
             start=2,
         ):
-            ttk.Label(tab, text=label, foreground="#667085").grid(row=row, column=0, sticky="nw")
+            ttk.Label(tab, text=label, foreground=MUTED).grid(row=row, column=0, sticky="nw")
             ttk.Label(tab, textvariable=variable, wraplength=760, justify="left").grid(
                 row=row, column=1, columnspan=3, sticky="w"
             )
@@ -3045,7 +3085,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 "One snapshot per second while the NYSE is open. Starting before the open waits "
                 "for the bell; recording stops at the close, including early closes."
             ),
-            foreground="#667085",
+            foreground=MUTED,
         ).grid(row=7, column=0, columnspan=4, sticky="w", pady=(6, 0))
 
     def _save_recording_folder(self) -> None:
@@ -3122,7 +3162,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         if getattr(self, "_connection_active", False):
             self._set_connected_state(False)
             self._set_status(
-                "Schwab is reconnecting. Wait for reconnection, or use DISCONNECT before retrying CONNECT."
+                "Schwab is reconnecting. Wait for reconnection, or use Disconnect before retrying Connect."
             )
             return
         self._connect_inflight = True
@@ -3694,7 +3734,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 (
                     "Schwab is reconnecting. Wait for reconnection before loading, or use DISCONNECT to cancel."
                     if connection_active
-                    else "Schwab is disconnected. Use CONNECT and wait for a live connection before loading."
+                    else "Schwab is disconnected. Use Connect and wait for a live connection before loading."
                 )
             )
             return
@@ -3713,7 +3753,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
     def _load_ticker_task(self, ticker: str, *, clear_active_quotes: bool = False) -> SearchResult:
         if not self.service.connected:
             raise RuntimeError(
-                "Schwab connection was lost before the ticker could load. Wait for reconnection, or use CONNECT."
+                "Schwab connection was lost before the ticker could load. Wait for reconnection, or use Connect."
             )
         if clear_active_quotes:
             self.service.clear_active_quotes()
@@ -3732,7 +3772,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             self.option_records = list(cached_records)
             self._populate_strike_controls()
             self._refresh_staged_market_data_quote_status()
-            self._set_status("Expiration staged. Click LOAD MATRIX to apply input changes.")
+            self._set_status("Expiration staged. Click Load matrix to apply input changes.")
             return
         self.option_records = []
         self.low_strike_combo["values"] = []
@@ -3749,7 +3789,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
     def _on_side_changed(self) -> None:
         self._populate_strike_controls()
         self._refresh_staged_market_data_quote_status()
-        self._set_status("Side staged. Click LOAD MATRIX to apply input changes.")
+        self._set_status("Side staged. Click Load matrix to apply input changes.")
 
     def _staged_width_band_availability(self) -> tuple[float, ...] | None:
         try:
@@ -3838,7 +3878,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
     def _on_matrix_input_changed(self) -> None:
         self._refresh_width_band_controls()
         self._refresh_staged_market_data_quote_status()
-        self._set_status("Click LOAD MATRIX to apply input changes.")
+        self._set_status("Click Load matrix to apply input changes.")
 
     def _load_matrix(self) -> None:
         if self.search_result is None:
@@ -4133,7 +4173,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         self._sync_view_from_active_tab()
         self._redraw_matrix_tabs()
         self._redraw_all()
-        self._set_status("Cached matrix tabs loaded. Click RELOAD MATRIX to request live quotes.")
+        self._set_status("Cached matrix tabs loaded. Click Reload matrix to request live quotes.")
 
     def _refresh_aggregate_ranked_signals(self) -> None:
         self.ranked_signals = build_aggregate_ranked_signals(
@@ -4215,7 +4255,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 self.matrix_tabs_frame,
                 text="(no tabs)",
                 bg=GRID_BG,
-                fg="#667085",
+                fg=MUTED,
                 font=self.grid_font,
             ).grid(row=0, column=0, sticky="w")
             return
@@ -4223,13 +4263,17 @@ class OptionsMatrixApp(PositionAlertsMixin):
         for index, tab in enumerate(self.matrix_tabs):
             is_active = tab.tab_id == self.active_tab_id
             bg = SELECTED_BG if is_active else HEADER_BG
-            tab_frame = tk.Frame(self.matrix_tabs_frame, bg=bg, bd=1, relief="solid")
+            tab_frame = tk.Frame(
+                self.matrix_tabs_frame, bg=bg, bd=0, highlightthickness=1,
+                highlightbackground=NAVY if is_active else GRID_LINE,
+                highlightcolor=NAVY if is_active else GRID_LINE,
+            )
             tab_frame.grid(row=0, column=index, padx=(0, 4), sticky="w")
             label = tk.Label(
                 tab_frame,
                 text=tab.label,
                 bg=bg,
-                fg="#111111",
+                fg=INK,
                 font=self.grid_font_bold if is_active else self.grid_font,
                 padx=6,
                 pady=2,
@@ -4239,7 +4283,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 tab_frame,
                 text="x",
                 bg=bg,
-                fg="#667085",
+                fg=MUTED,
                 font=self.grid_font_bold,
                 padx=5,
                 pady=2,
@@ -4652,7 +4696,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 self.option_records = records
                 self._populate_strike_controls()
                 self._refresh_staged_market_data_quote_status()
-            self._set_status(f"Loaded {len(records)} option contracts. Click LOAD MATRIX to apply input changes.")
+            self._set_status(f"Loaded {len(records)} option contracts. Click Load matrix to apply input changes.")
             return
         if result.kind == "load_matrix_records":
             raw_expiration, records = result.value
@@ -4940,8 +4984,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
         settings_tabs.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
         method_frame = ttk.Frame(settings_tabs, padding=6)
         cell_guide_frame = ttk.Frame(settings_tabs, padding=6)
-        settings_tabs.add(method_frame, text="Fair Value")
-        settings_tabs.add(cell_guide_frame, text="Matrix Cell Guide")
+        settings_tabs.add(method_frame, text="Fair value")
+        settings_tabs.add(cell_guide_frame, text="Matrix cell guide")
         method_frame.columnconfigure(0, weight=1)
         method_frame.rowconfigure(2, weight=1)
         cell_guide_frame.columnconfigure(0, weight=1)
@@ -4960,7 +5004,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             ttk.Label(
                 frame,
                 text=f"Default {format_formula_setting_value(default_value)}",
-                foreground="#667085",
+                foreground=MUTED,
             ).grid(row=row, column=2, sticky="w", padx=(0, 8), pady=2)
             ttk.Button(
                 frame,
@@ -4973,7 +5017,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             ttk.Label(
                 frame,
                 text=control.purpose,
-                foreground="#667085",
+                foreground=MUTED,
                 wraplength=390,
             ).grid(row=row, column=4, sticky="w", pady=2)
 
@@ -4985,7 +5029,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 fair_value_overview,
                 text=f"{title}: {description}",
                 wraplength=890,
-                foreground="#475467",
+                foreground=INK_2,
                 justify=tk.LEFT,
             ).grid(
                 row=overview_row,
@@ -5016,12 +5060,12 @@ class OptionsMatrixApp(PositionAlertsMixin):
             cell_guide_frame,
             text=(
                 "A cell's fill, border, text, and right-edge liquidity gauge are independent "
-                "layers. A blue dot marks a saved position. Its SIGNAL/PRICE half illuminates when its live exit target "
+                "layers. A navy dot marks a saved position. Its SIGNAL/PRICE half illuminates when its live exit target "
                 "is reached. Fair-value signal text continues to update independently. "
                 "The samples below describe every matrix state."
             ),
             wraplength=900,
-            foreground="#475467",
+            foreground=INK_2,
             justify=tk.LEFT,
         ).grid(row=0, column=0, sticky="ew", pady=(0, 6))
         cell_guide_canvas = tk.Canvas(
@@ -5082,11 +5126,11 @@ class OptionsMatrixApp(PositionAlertsMixin):
             ttk.Label(
                 buttons,
                 text="These settings come from the mini PC so both PCs show the same numbers. Change them there.",
-                foreground="#1f4d7a",
+                foreground=NAVY,
             ).pack(side=tk.LEFT)
             ttk.Button(buttons, text="Close", command=dialog.destroy).pack(side=tk.RIGHT)
         else:
-            ttk.Button(buttons, text="Reset Editable Defaults", command=reset_all).pack(side=tk.LEFT)
+            ttk.Button(buttons, text="Reset editable defaults", command=reset_all).pack(side=tk.LEFT)
             ttk.Button(buttons, text="Cancel", command=dialog.destroy).pack(side=tk.RIGHT)
             ttk.Button(buttons, text="Apply", command=apply).pack(side=tk.RIGHT, padx=(0, 8))
 
@@ -5129,26 +5173,26 @@ class OptionsMatrixApp(PositionAlertsMixin):
             plot_left,
             12,
             text="1  Normalized atomic mids -> robust leave-one-out decision fits",
-            fill="#344054",
-            font=self.grid_font_bold,
+            fill=INK,
+            font=getattr(self, "prose_bold_font", self.grid_font_bold),
             anchor="w",
         )
         canvas.create_text(
             plot_left,
             28,
             text="If the candidate's direct mid is in calibration, hold it out; fit only the remaining eligible mids from the same option side.",
-            fill="#667085",
-            font=self.detail_font,
+            fill=MUTED,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="nw",
             width=plot_right - plot_left,
             justify=tk.LEFT,
         )
-        canvas.create_line(plot_left, plot_bottom, plot_right, plot_bottom, fill="#98a2b3")
-        canvas.create_line(plot_left, plot_top, plot_left, plot_bottom, fill="#98a2b3")
+        canvas.create_line(plot_left, plot_bottom, plot_right, plot_bottom, fill=FAINT)
+        canvas.create_line(plot_left, plot_top, plot_left, plot_bottom, fill=FAINT)
         for value in (0.0, 0.25, 0.50, 0.75, 1.0):
             y = plot_y(value)
-            canvas.create_line(plot_left, y, plot_right, y, fill="#eaecf0", dash=(2, 3))
-            canvas.create_text(plot_left - 5, y, text=format_price(value), fill="#667085", font=self.detail_font, anchor="e")
+            canvas.create_line(plot_left, y, plot_right, y, fill=RULE, dash=(2, 3))
+            canvas.create_text(plot_left - 5, y, text=format_price(value), fill=MUTED, font=self.detail_font, anchor="e")
 
         fitted_coordinates: list[float] = []
         for x_value, fair_value in data.fitted_points:
@@ -5206,37 +5250,37 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 legend_x + 12,
                 legend_y + 4,
                 text=label,
-                fill="#475467",
-                font=self.detail_font,
+                fill=INK_2,
+                font=getattr(self, "prose_font", self.detail_font),
                 anchor="w",
             )
         canvas.create_text(
             (plot_left + plot_right) / 2,
             262,
             text="far OTM  <-  moneyness relative to the underlying  ->  ITM",
-            fill="#667085",
-            font=self.detail_font,
+            fill=MUTED,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="n",
         )
         canvas.create_text(
             (plot_left + plot_right) / 2,
             281,
             text="Min Regression Points applies after holdout; insufficient support = no FV/signal.",
-            fill="#475467",
-            font=self.detail_font,
+            fill=INK_2,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="n",
         )
 
         panel_left = max(plot_right + 28, width * 0.64)
         panel_right = width - 24
         panel_width = panel_right - panel_left
-        canvas.create_line(panel_left - 14, 8, panel_left - 14, 288, fill="#d0d5dd")
+        canvas.create_line(panel_left - 14, 8, panel_left - 14, 288, fill=RULE)
         canvas.create_text(
             panel_left,
             12,
             text="2  Wider FV = sum of atomic LOO FVs",
-            fill="#344054",
-            font=self.grid_font_bold,
+            fill=INK,
+            font=getattr(self, "prose_bold_font", self.grid_font_bold),
             anchor="w",
         )
         box_width = min(62.0, max(48.0, (panel_width - 64) / 3))
@@ -5244,25 +5288,28 @@ class OptionsMatrixApp(PositionAlertsMixin):
         group_left = panel_left + max(0.0, (panel_width - group_width) / 2)
         for index, atomic_value in enumerate(data.atomic_values):
             x = group_left + index * (box_width + 24)
-            canvas.create_rectangle(x, 48, x + box_width, 86, fill="#eaf4ed", outline=SUBSCRIPTION_CONFIRMED_COLOR)
-            canvas.create_text(x + box_width / 2, 59, text=f"Adjacent #{index + 1}", fill="#475467", font=self.detail_font, anchor="c")
-            canvas.create_text(x + box_width / 2, 75, text=format_price(atomic_value), fill="#111111", font=self.grid_font_bold, anchor="c")
+            canvas.create_rectangle(x, 48, x + box_width, 86, fill=UP_TINT, outline=SUBSCRIPTION_CONFIRMED_COLOR)
+            canvas.create_text(
+                x + box_width / 2, 59, text=f"Adjacent #{index + 1}", fill=INK_2,
+                font=getattr(self, "prose_font", self.detail_font), anchor="c",
+            )
+            canvas.create_text(x + box_width / 2, 75, text=format_price(atomic_value), fill=INK, font=self.grid_font_bold, anchor="c")
             if index + 1 < len(data.atomic_values):
-                canvas.create_text(x + box_width + 12, 67, text="+", fill="#667085", font=self.grid_font_bold, anchor="c")
+                canvas.create_text(x + box_width + 12, 67, text="+", fill=MUTED, font=self.grid_font_bold, anchor="c")
         canvas.create_text(
             panel_left + (panel_width / 2),
             108,
             text=f"Width {data.composed_width:g} fair value = {format_price(data.composed_fair_value)}",
-            fill="#344054",
-            font=self.grid_font_bold,
+            fill=INK,
+            font=getattr(self, "prose_bold_font", self.grid_font_bold),
             anchor="c",
         )
         canvas.create_text(
             panel_left + (panel_width / 2),
             126,
             text=f"Configured width-{data.composed_width:g} edge = {format_price(data.composed_edge)}",
-            fill="#667085",
-            font=self.detail_font,
+            fill=MUTED,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="c",
         )
         canvas.create_text(
@@ -5272,8 +5319,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 f"BUY <= {format_price(data.buy_endpoint)}   |   "
                 f"SELL >= {format_price(data.sell_endpoint)}"
             ),
-            fill="#475467",
-            font=self.detail_font,
+            fill=INK_2,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="c",
         )
 
@@ -5281,8 +5328,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             panel_left,
             164,
             text="3  Your edge inputs by spread width",
-            fill="#344054",
-            font=self.grid_font_bold,
+            fill=INK,
+            font=getattr(self, "prose_bold_font", self.grid_font_bold),
             anchor="w",
         )
         chart_left = panel_left + 18
@@ -5296,8 +5343,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             x = chart_left + (index / max(1, len(data.edge_schedule) - 1)) * (chart_right - chart_left)
             y = chart_bottom - (edge / edge_ceiling) * (chart_bottom - chart_top)
             edge_coordinates.extend((x, y))
-            canvas.create_line(x, chart_bottom, x, y, fill="#eaecf0")
-            canvas.create_text(x, chart_bottom + 11, text=f"W{spread_width:g}", fill="#667085", font=self.detail_font, anchor="n")
+            canvas.create_line(x, chart_bottom, x, y, fill=RULE)
+            canvas.create_text(x, chart_bottom + 11, text=f"W{spread_width:g}", fill=MUTED, font=self.detail_font, anchor="n")
             canvas.create_text(x, y - 7, text=format_price(edge), fill=MID_COLOR, font=self.detail_font, anchor="s")
         canvas.create_line(*edge_coordinates, fill=MID_COLOR, width=2)
         for x, y in zip(edge_coordinates[::2], edge_coordinates[1::2]):
@@ -5309,8 +5356,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 f"Widths <= 1 use W1; supported fractional widths interpolate: "
                 f"W2.25 = {format_price(fair_value_edge_for_width(2.25, settings))}"
             ),
-            fill="#475467",
-            font=self.detail_font,
+            fill=INK_2,
+            font=getattr(self, "prose_font", self.detail_font),
             anchor="s",
         )
 
@@ -5320,7 +5367,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         column_gap = 12.0
         outer_padding = 10.0
         column_width = (width - (outer_padding * 2) - (column_gap * 2)) / 3
-        row_height = 120.0
+        row_height = 132.0
         grouped_items = (
             (
                 "FILL / POSITION / TAB STATE",
@@ -5351,15 +5398,15 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 4,
                 column_left + column_width,
                 panel_bottom,
-                fill="#fcfcfd",
-                outline="#d0d5dd",
+                fill=RAISED,
+                outline=RULE,
             )
             canvas.create_text(
                 column_left + 8,
                 16,
                 text=title,
-                fill="#344054",
-                font=self.grid_font_bold,
+                fill=MUTED,
+                font=getattr(self, "header_font", self.grid_font_bold),
                 anchor="w",
             )
             for row, item in enumerate(items):
@@ -5377,6 +5424,10 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 if item.key == "state_stale":
                     rectangle_options["stipple"] = "gray25"
                 canvas.create_rectangle(sample_left, y, sample_right, sample_bottom, **rectangle_options)
+                if item.hatch and hasattr(canvas, "create_line"):
+                    one_desk.draw_hatch(
+                        canvas, sample_left + 1, y + 1, sample_right - 1, sample_bottom - 1, spacing=item.hatch
+                    )
                 if item.key == "position_saved":
                     OptionsMatrixApp._draw_matrix_position_icon(
                         self, canvas, combo_x=sample_left, y=y,
@@ -5384,7 +5435,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                     )
                     canvas.create_text(
                         sample_left + POSITION_ICON_LANE_WIDTH + 4, y + 15,
-                        text=item.sample_text, fill="#111111", font=self.detail_font, anchor="w",
+                        text=item.sample_text, fill=INK, font=self.detail_font, anchor="w",
                     )
                 elif item.category == "position":
                     sample_middle = (sample_left + sample_right) / 2.0
@@ -5474,16 +5525,16 @@ class OptionsMatrixApp(PositionAlertsMixin):
                     text_left,
                     y,
                     text=item.label,
-                    fill="#344054",
-                    font=self.grid_font_bold,
+                    fill=INK,
+                    font=getattr(self, "prose_bold_font", self.grid_font_bold),
                     anchor="nw",
                 )
                 canvas.create_text(
                     text_left,
                     y + 16,
                     text=item.description,
-                    fill="#667085",
-                    font=self.detail_font,
+                    fill=MUTED,
+                    font=getattr(self, "prose_font", self.detail_font),
                     anchor="nw",
                     width=max(80, column_left + column_width - text_left - 8),
                 )
@@ -5744,7 +5795,12 @@ class OptionsMatrixApp(PositionAlertsMixin):
         if not hasattr(canvas, "itemconfigure"):
             return
         styles = OptionsMatrixApp._active_subscription_styles(self, tab)
+        can_hatch = all(
+            hasattr(canvas, method) for method in ("delete", "coords", "create_line", "tag_raise")
+        )
         try:
+            if can_hatch:
+                canvas.delete(SUBSCRIPTION_HATCH_TAG)
             for cell_key, items in getattr(self, "_matrix_cell_items", {}).items():
                 style = styles.get(cell_key, MatrixCellSubscriptionStyle())
                 for rectangle_id in items.rectangle_ids:
@@ -5754,6 +5810,13 @@ class OptionsMatrixApp(PositionAlertsMixin):
                         width=style.width,
                         dash=style.dash,
                     )
+                    if can_hatch and style.hatch:
+                        x0, y0, x1, y1 = canvas.coords(rectangle_id)
+                        for line_id in one_desk.draw_hatch(
+                            canvas, x0 + 1, y0 + 1, x1 - 1, y1 - 1,
+                            spacing=style.hatch, tags=(SUBSCRIPTION_HATCH_TAG,),
+                        ):
+                            canvas.tag_raise(line_id, rectangle_id)  # under the cell text
         except tk.TclError:
             self._matrix_render_signature = None
 
@@ -6076,12 +6139,12 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 canvas.itemconfigure(items.rectangle_ids[1], fill=signal_fill)
                 if selection is None:
                     combo_text = ""
-                    combo_color = "#111111"
+                    combo_color = INK
                     signal_text = ""
-                    signal_color = "#111111"
+                    signal_color = INK
                 else:
                     combo_text = pair_key_for_pair(selection.pair)
-                    combo_color = ITM_TEXT if is_itm else "#111111"
+                    combo_color = ITM_TEXT if is_itm else INK
                     signal_text, signal_color = self._cell_signal_text(snapshot, muted=is_itm)
                     if bool(getattr(items, "compact_signal", False)):
                         signal_text = compact_matrix_signal_text(signal_text)
@@ -6180,7 +6243,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             strike_width / 2,
             header_height / 2,
             text="STRIKE",
-            font=self.grid_font,
+            font=getattr(self, "header_font", self.grid_font),
+            fill=MUTED,
             anchor="c",
         )
 
@@ -6195,6 +6259,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 header_one / 2,
                 text=f"WIDTH {width:.2f}",
                 font=self.grid_font,
+                fill=INK,
                 anchor="c",
             )
             canvas.create_rectangle(x, header_one, x + combo_width, header_height, fill=GRID_BG, outline=GRID_LINE)
@@ -6210,14 +6275,16 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 x + (combo_width / 2),
                 header_one + (header_two / 2),
                 text="COMBO",
-                font=self.grid_font,
+                font=getattr(self, "header_font", self.grid_font),
+                fill=MUTED,
                 anchor="c",
             )
             canvas.create_text(
                 x + combo_width + (signal_width / 2),
                 header_one + (header_two / 2),
                 text="SIGNAL/PRICE",
-                font=self.grid_font,
+                font=getattr(self, "header_font", self.grid_font),
+                fill=MUTED,
                 anchor="c",
             )
 
@@ -6226,7 +6293,9 @@ class OptionsMatrixApp(PositionAlertsMixin):
             y = header_height + (row_index * row_height)
             canvas.create_rectangle(0, y, strike_width, y + row_height, fill=GRID_BG, outline=GRID_LINE)
             strike_text = "" if not self.row_strikes else format_strike(strike)
-            canvas.create_text(strike_width / 2, y + row_height / 2, text=strike_text, font=self.grid_font, anchor="c")
+            canvas.create_text(
+                strike_width / 2, y + row_height / 2, text=strike_text, font=self.grid_font, fill=INK, anchor="c"
+            )
 
             for slot in layout.slots:
                 if not slot.selected:
@@ -6264,15 +6333,15 @@ class OptionsMatrixApp(PositionAlertsMixin):
                     outline=GRID_LINE,
                 )
                 combo = ""
-                combo_color = "#111111"
+                combo_color = INK
                 signal_text = ""
-                signal_color = "#111111"
+                signal_color = INK
                 if selection is not None and not is_stale:
                     combo = pair_key_for_pair(selection.pair)
                     signal_text, signal_color = self._cell_signal_text(snapshot, muted=is_itm)
                     if compact_signal:
                         signal_text = compact_matrix_signal_text(signal_text)
-                    combo_color = ITM_TEXT if is_itm else "#111111"
+                    combo_color = ITM_TEXT if is_itm else INK
                     self.matrix_hitboxes.append((x, y, x + group_width, y + row_height, cell_key))
                 position_icon_id = OptionsMatrixApp._draw_matrix_position_icon(
                     self, canvas, combo_x=x, y=y, row_height=row_height,
@@ -6338,7 +6407,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 max(240, total_width / 2),
                 header_height + 28,
                 text="Load a ticker, expiration, strike range, and matrix.",
-                fill="#667085",
+                fill=MUTED,
                 font=self.grid_font,
                 anchor="c",
             )
@@ -6382,7 +6451,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             left_panel_right / 2,
             side_header_height / 2,
             text="CALLS",
-            font=self.grid_font_bold,
+            font=getattr(self, "header_font", self.grid_font_bold),
+            fill=INK,
             anchor="c",
         )
         canvas.create_rectangle(
@@ -6398,7 +6468,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             right_panel_left + ((total_width - right_panel_left) / 2),
             side_header_height / 2,
             text="PUTS",
-            font=self.grid_font_bold,
+            font=getattr(self, "header_font", self.grid_font_bold),
+            fill=INK,
             anchor="c",
         )
         canvas.create_rectangle(
@@ -6414,7 +6485,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
             layout.strike_x + (layout.strike_width / 2),
             header_height / 2,
             text="STRIKE",
-            font=self.grid_font_bold,
+            font=getattr(self, "header_font", self.grid_font_bold),
+            fill=MUTED,
             anchor="c",
         )
 
@@ -6440,6 +6512,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 y_one + (width_header_height / 2),
                 text=f"WIDTH {slot.width:.2f}",
                 font=self.grid_font,
+                fill=INK,
                 anchor="c",
             )
             canvas.create_rectangle(
@@ -6462,14 +6535,16 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 combo_x + (layout.combo_width / 2),
                 y_two + (field_header_height / 2),
                 text="COMBO",
-                font=self.grid_font,
+                font=getattr(self, "header_font", self.grid_font),
+                fill=MUTED,
                 anchor="c",
             )
             canvas.create_text(
                 signal_x + (layout.signal_width / 2),
                 y_two + (field_header_height / 2),
                 text="SIGNAL/PRICE",
-                font=self.grid_font,
+                font=getattr(self, "header_font", self.grid_font),
+                fill=MUTED,
                 anchor="c",
             )
 
@@ -6498,6 +6573,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 y + (row_height / 2),
                 text=strike_text,
                 font=self.grid_font,
+                fill=INK,
                 anchor="c",
             )
             for right, slots in side_slots:
@@ -6548,12 +6624,12 @@ class OptionsMatrixApp(PositionAlertsMixin):
                         outline=GRID_LINE,
                     )
                     combo = ""
-                    combo_color = "#111111"
+                    combo_color = INK
                     signal_text = ""
-                    signal_color = "#111111"
+                    signal_color = INK
                     if selection is not None and not tab.is_stale:
                         combo = pair_key_for_pair(selection.pair)
-                        combo_color = ITM_TEXT if is_itm else "#111111"
+                        combo_color = ITM_TEXT if is_itm else INK
                         signal_text, signal_color = self._cell_signal_text(snapshot, muted=is_itm)
                         if compact_signal:
                             signal_text = compact_matrix_signal_text(signal_text)
@@ -6621,7 +6697,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 total_width / 2,
                 header_height + 28,
                 text="Load a ticker, expiration, strike range, and matrix.",
-                fill="#667085",
+                fill=MUTED,
                 font=self.grid_font,
                 anchor="c",
             )
@@ -6634,7 +6710,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             0,
             visible_width,
             visible_height,
-            fill="#eef0f3",
+            fill=SUNKEN,
             outline="",
             stipple="gray25",
         )
@@ -6644,7 +6720,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
             center_x,
             center_y - 34,
             text="Cached matrix needs live data",
-            fill="#4b5563",
+            fill=INK_2,
             font=self.grid_font_bold,
             anchor="c",
         )
@@ -6654,8 +6730,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
         y1 = center_y - (button_height / 2)
         x2 = center_x + (button_width / 2)
         y2 = center_y + (button_height / 2)
-        canvas.create_rectangle(x1, y1, x2, y2, fill="#ffffff", outline="#4b5563", width=2)
-        canvas.create_text(center_x, center_y, text="RELOAD MATRIX", fill="#111111", font=self.grid_font_bold)
+        canvas.create_rectangle(x1, y1, x2, y2, fill=SURFACE, outline=INK_2, width=2)
+        canvas.create_text(center_x, center_y, text="Reload matrix", fill=INK, font=self.grid_font_bold)
         self.matrix_reload_hitbox = (x1, y1, x2, y2)
 
     def _selection_is_itm(self, selection: VerticalSelection) -> bool:
@@ -6672,7 +6748,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         muted: bool = False,
     ) -> tuple[str, str]:
         if snapshot is None:
-            return "...", "#667085"
+            return "...", MUTED
         position_exit = position_exit_for_selection(self, snapshot.selection)
         if position_exit is not None and position_exit.signal is not None:
             return (
@@ -6688,10 +6764,10 @@ class OptionsMatrixApp(PositionAlertsMixin):
             return f"{prefix} {format_price(signal.price)} ({format_price(signal.edge)})", color
         mid = effective_mid(snapshot)
         if mid is None:
-            return "--", "#667085"
+            return "--", MUTED
         if fair_value_edge_curve_values(snapshot) is None:
             return f"M {format_price(mid)} FV?", SUBSCRIPTION_CONTEXT_COLOR
-        return f"M {format_price(mid)}", ITM_TEXT if muted else "#111111"
+        return f"M {format_price(mid)}", ITM_TEXT if muted else INK
 
     def _rank_table_state_signature(self) -> tuple[object, ...]:
         return (
@@ -6790,7 +6866,7 @@ class OptionsMatrixApp(PositionAlertsMixin):
         )
         if snapshot is None and selection is None:
             self.selected_header_var.set("SELECTED SPREAD: (TYPE) --- 0W (EXPIRY) - -- (--)")
-            canvas.create_text(width / 2, height / 2, text="No selected spread", fill="#98a2b3", font=self.grid_font)
+            canvas.create_text(width / 2, height / 2, text="No selected spread", fill=FAINT, font=self.grid_font)
             return
 
         selected_selection = snapshot.selection if snapshot is not None else selection
@@ -6815,13 +6891,13 @@ class OptionsMatrixApp(PositionAlertsMixin):
         )
 
         if snapshot is None:
-            canvas.create_text(width / 2, height / 2, text="Waiting for live quotes", fill="#98a2b3", font=self.grid_font)
+            canvas.create_text(width / 2, height / 2, text="Waiting for live quotes", fill=FAINT, font=self.grid_font)
             return
 
         values = self._detail_values(snapshot)
         numeric_values = detail_display_values(snapshot)
         if not numeric_values:
-            canvas.create_text(width / 2, height / 2, text="Waiting for live quotes", fill="#98a2b3", font=self.grid_font)
+            canvas.create_text(width / 2, height / 2, text="Waiting for live quotes", fill=FAINT, font=self.grid_font)
             return
 
         display_min = min(numeric_values)
@@ -6846,9 +6922,9 @@ class OptionsMatrixApp(PositionAlertsMixin):
             min_points=self.formula_settings.fair_value_edge_curve_min_points,
         )
         for label, y in lanes:
-            canvas.create_text(8, y, text=label, fill="#667085", font=self.detail_font_bold, anchor="w")
+            canvas.create_text(8, y, text=label, fill=MUTED, font=self.detail_font_bold, anchor="w")
             if label != "FV" or fair_value_message is None:
-                canvas.create_line(left, y, right, y, fill="#d8dde6", width=1)
+                canvas.create_line(left, y, right, y, fill=RULE, width=1)
         lane_y = dict(lanes)
 
         def value_to_x(value: float) -> float:
@@ -7113,8 +7189,8 @@ class OptionsMatrixApp(PositionAlertsMixin):
                 popup,
                 text=text,
                 justify="left",
-                background="#fffbea",
-                foreground="#111111",
+                background=TOOLTIP_BG,
+                foreground=TOOLTIP_FG,
                 relief="solid",
                 borderwidth=1,
                 padx=6,

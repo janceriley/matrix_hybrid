@@ -32,7 +32,7 @@ How the numbers stay identical: the viewer doesn't receive finished numbers. It 
 2. Schwab credentials: copy `schwab_token.json` from `Options_Matrix\oma_app\schwab_auth\` into `mini_pc\schwab_auth\`, or run `mini_pc\schwab_auth\authorize_schwab.bat`. The credentials file stays on the mini PC only.
 3. Double-click **Start Mini PC.pyw**. The first time it opens, it copies your existing fair-value settings and saved tabs from the original Options Matrix.
 4. Windows will probably ask whether **Python** may use the network. Tick **Private networks** only and click **Allow**.
-5. Click **MINI PC…** (top right) and note **this PC's address**, the **port** (47210 by default) and the **password**.
+5. Click **Mini PC…** (top right) and note **this PC's address**, the **port** (47210 by default) and the **password**.
 6. Network housekeeping:
    - Settings > Network & internet > your connection: set **Network profile type** to **Private**.
    - In your router's settings, **reserve** the mini PC's IP address so it never changes.
@@ -41,7 +41,7 @@ How the numbers stay identical: the viewer doesn't receive finished numbers. It 
 ### Work PC
 1. In `work_pc`, double-click **setup.bat**.
 2. Double-click **Start Work PC.pyw**.
-3. Click **CONNECTION…** and enter the mini PC's address, port and password. The viewer remembers them and reconnects by itself from then on.
+3. Click **Connection…** and enter the mini PC's address, port and password. The viewer remembers them and reconnects by itself from then on.
 
 Nothing needs to be opened in the work PC's firewall. Only the mini PC accepts connections.
 
@@ -50,15 +50,15 @@ Nothing needs to be opened in the work PC's firewall. Only the mini PC accepts c
 ## Using it
 
 ### Mini PC
-- Works like the Options Matrix you know: **CONNECT**, then load a ticker, expiry, side, strike range and widths, then **LOAD MATRIX** (up to 3 tabs).
+- Works like the Options Matrix you know: **Connect**, then load a ticker, expiry, side, strike range and widths, then **Load matrix** (up to 3 tabs).
 - **Recording** tab at the bottom: choose the folder, then **Start recording** / **Stop recording**. Starting before the open waits for the bell, and recording stops at the close.
 - **⇄ 1 VIEWER** (top right) shows how many work PCs are watching.
 
 ### Work PC
-- The viewer's tabs mirror the mini PC's tabs. For each tab, the **VIEW** row lets you narrow the **side**, **strike range** and **widths**. You can't go beyond what the mini PC has loaded. Click **APPLY VIEW**; **SHOW ALL** returns to the whole tab. A `*` on a tab means you're looking at part of it.
+- The viewer's tabs mirror the mini PC's tabs. For each tab, the **VIEW** row lets you narrow the **side**, **strike range** and **widths**. You can't go beyond what the mini PC has loaded. Click **Apply view**; **Show all** returns to the whole tab. A `*` on a tab means you're looking at part of it.
 - Narrowing a view never changes the numbers. Fair values are always computed on the mini PC's whole tab.
-- **Positions / Exit Alerts** work as before and are saved on the work PC. A position keeps being watched even when your current view hides its row. Double-clicking it brings the row back into view.
-- **SETTINGS** shows the fair-value settings read-only; change them on the mini PC.
+- **Positions / exit alerts** work as before and are saved on the work PC. A position keeps being watched even when your current view hides its row. Double-clicking it brings the row back into view.
+- **Settings…** shows the fair-value settings read-only; change them on the mini PC.
 - The top line shows the mini PC's state, for example: `Mini PC market data ● LIVE · ● REC ON · 12,345 rows saved · NYSE open until 4:00 PM ET`.
 
 ### Safety: the viewer never shows frozen prices as live
@@ -71,7 +71,7 @@ If the viewer hears nothing from the mini PC for about 3.5 seconds, or the mini 
 ---
 
 ## Autopilot (mini PC that runs itself)
-On the mini PC, click **MINI PC…** and tick:
+On the mini PC, click **Mini PC…** and tick:
 - **Connect to Schwab when this program starts, and keep reconnecting.** Unlike before, it doesn't give up after Schwab's 5 automatic retries.
 - **Reload the saved matrix tabs after connecting.**
 - **Record every trading day automatically.** Recording is armed before the open, stops at the close, and starts again the next trading day. If you press **Stop recording** yourself, it stays stopped for the rest of that day.
@@ -93,13 +93,22 @@ On the mini PC, double-click **Start Mini PC (demo data).pyw**. It uses made-up 
 
 ---
 
+## Look
+
+Both programs use One Desk, the look shared with Market Synthetic Playback and the USO scalp dashboard:
+
+- **Light by default.** Both programs open light. To open them dark, set the Windows environment variable `OPTIONS_MATRIX_THEME` to `dark`: run `setx OPTIONS_MATRIX_THEME dark` once, then start the program again. `auto` follows the Windows app setting, and `light` goes back.
+- **Healthy cells keep plain hairlines.** A failed stream hatches its cells instead of outlining them in red. The hatch is denser when the failure keeps coming back. **Settings… > Matrix cell guide** shows every cell state.
+- **Numbers are in Cascadia Mono**, labels in Bahnschrift, everything else in Segoe UI Variable. PCs without them fall back to Consolas and Segoe UI.
+- The colors and fonts live in `mini_pc/options_matrix/one_desk.py` and the vendored `onedesk` folder next to it. Neither is part of the version check, so restyling never causes UPDATE NEEDED. Changes to `app.py` or `models.py` still need the same copy on both PCs.
+
 ## Troubleshooting
 
 **A setup window flashes and closes, or says *running scripts is disabled on this system*:** a `.ps1` file was opened directly, and Windows blocks PowerShell scripts by default. Double-click the `.bat` file with the same name instead (for example `setup.bat`).
 
 | Viewer shows | What to do |
 |---|---|
-| ✕ WRONG PASSWORD | Re-enter the password shown under **MINI PC…** on the mini PC (**CONNECTION…**). |
+| ✕ WRONG PASSWORD | Re-enter the password shown under **Mini PC…** on the mini PC (**Connection…**). |
 | ⚠ UPDATE NEEDED | The PCs have different versions. Copy the same `multi_matrix` folder to both. |
 | ↻ RECONNECTING | Is the mini PC on, awake, and running the Studio with sharing on? Check the address and firewall (below). |
 | MINI PC: NO MARKET DATA | The mini PC isn't connected to Schwab. Check its window, or re-authorize Schwab. |

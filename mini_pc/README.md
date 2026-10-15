@@ -3,8 +3,8 @@
 The mini PC program. It's the original Options Matrix display with three additions:
 
 1. **Built-in recorder.** A **Recording** tab writes the same 42-column Parquet files as the separate Matrix Recorder did: one snapshot per second during NYSE hours, buffered and flushed off the window's thread. Files go in `recordings\<date>_ET__<TICKER>__<id>\part-0001.parquet`, …
-2. **Sharing with work PC viewers.** The live matrix is offered on your home network: port 47210 by default, protected by a password. Click **MINI PC…** to see the address, port and password.
-3. **Autopilot.** It can connect at startup and keep reconnecting, reload the saved tabs, and record every trading day. Turn these on under **MINI PC…**.
+2. **Sharing with work PC viewers.** The live matrix is offered on your home network: port 47210 by default, protected by a password. Click **Mini PC…** to see the address, port and password.
+3. **Autopilot.** It can connect at startup and keep reconnecting, reload the saved tabs, and record every trading day. Turn these on under **Mini PC…**.
 
 See the [main guide](../README.md) for setup on both PCs, troubleshooting and the daily routine.
 

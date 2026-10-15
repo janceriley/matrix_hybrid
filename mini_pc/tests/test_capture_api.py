@@ -44,7 +44,18 @@ def _headless_app(**kwargs):
         stack.enter_context(patch("options_matrix.app.tk.Tk", return_value=Mock()))
         stack.enter_context(patch("options_matrix.app.tk.StringVar", _Value))
         stack.enter_context(patch("options_matrix.app.tk.BooleanVar", _Value))
-        stack.enter_context(patch("options_matrix.app.tkfont.Font", return_value=object()))
+        # The One Desk theme needs a real Tk interpreter; stand its seams in.
+        stack.enter_context(patch("options_matrix.app.one_desk.apply", return_value=Mock()))
+        stack.enter_context(
+            patch(
+                "options_matrix.app.one_desk.matrix_fonts",
+                return_value=SimpleNamespace(
+                    grid=object(), grid_bold=object(), detail=object(), detail_bold=object(), header=object(),
+                    prose=object(), prose_bold=object(),
+                ),
+            )
+        )
+        stack.enter_context(patch("options_matrix.app.one_desk.caps_labels", return_value=0))
         stack.enter_context(patch("options_matrix.app.SchwabMarketDataService", return_value=SimpleNamespace(connected=False, quote_generation=0)))
         for method in ("_build_ui", "_load_cached_workspace_as_stale_tabs", "_set_connected_state"):
             stack.enter_context(patch.object(OptionsMatrixApp, method))

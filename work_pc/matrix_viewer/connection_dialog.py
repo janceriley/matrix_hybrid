@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING
 
+from options_matrix.one_desk import ERROR_TEXT, MUTED
 from options_matrix.window_placement import center_dialog_on_parent_monitor
 
 from .viewer_settings import ViewerSettings
@@ -29,10 +30,10 @@ class ConnectionDialog:
         ttk.Label(
             box,
             text=(
-                "Enter what the mini PC shows under MINI PC… > Share with the work PC.\n"
+                "Enter what the mini PC shows under Mini PC… > Share with the work PC.\n"
                 "The address can be its IP address (for example 192.168.1.50) or its computer name."
             ),
-            foreground="#667085",
+            foreground=MUTED,
             justify="left",
         ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
@@ -56,7 +57,7 @@ class ConnectionDialog:
         ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(6, 0))
 
         self.error = tk.StringVar()
-        ttk.Label(box, textvariable=self.error, foreground="#b42318", wraplength=420).grid(
+        ttk.Label(box, textvariable=self.error, foreground=ERROR_TEXT, wraplength=420).grid(
             row=5, column=0, columnspan=3, sticky="w", pady=(6, 0)
         )
         buttons = ttk.Frame(box)

@@ -3,7 +3,7 @@
 The work PC program. It connects to Options Matrix Studio on the mini PC and shows its live matrix. It never talks to Schwab and needs no Schwab credentials.
 
 - **Identical numbers:** the viewer rebuilds every mini PC tab from the mini PC's option chain, settings and live quotes, using the same code, which it loads from the sibling `mini_pc` folder.
-- **Your view:** for each tab, narrow the side, strike range and widths (**VIEW** row, **APPLY VIEW**, **SHOW ALL**). You can't show anything the mini PC hasn't loaded.
+- **Your view:** for each tab, narrow the side, strike range and widths (**VIEW** row, **Apply view**, **Show all**). You can't show anything the mini PC hasn't loaded.
 - **Positions and exit alerts** are saved on this PC and watch the mini PC's whole tabs, even rows your view hides.
 - **Safe when the link drops:** after about 3.5 s without data, the matrix greys out and alerts pause until a fresh full copy arrives.
 

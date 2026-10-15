@@ -25,5 +25,8 @@ options-matrix-studio = "options_matrix.main:main"
 [tool.setuptools.packages.find]
 include = ["options_matrix*"]
 
+[tool.setuptools.package-data]
+"options_matrix.onedesk" = ["tokens.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

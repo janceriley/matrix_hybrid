@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from options_matrix import one_desk
 from options_matrix.app import (
     DEFAULT_MATRIX_MODE,
     DEFAULT_WIDTHS,
@@ -18,6 +19,8 @@ from options_matrix.app import (
     FAIR_VALUE_SYSTEM_OVERVIEW,
     FORMULA_SETTING_CONTROLS,
     GRID_BG,
+    GRID_LINE,
+    INK,
     ITM_BG,
     ITM_SELECTED_BG,
     MAX_MATRIX_STRIKE_WIDTH,
@@ -927,7 +930,10 @@ class MatrixModelsTestCase(unittest.TestCase):
         }
         for key, expected in expected_border_styles.items():
             item = by_key[key]
-            self.assertEqual((item.outline, item.border_width, item.dash), (expected.outline, expected.width, expected.dash))
+            self.assertEqual(
+                (item.outline, item.border_width, item.dash, item.hatch),
+                (expected.outline, expected.width, expected.dash, expected.hatch),
+            )
 
     def test_signal_methods_only_include_fair_value_edge_curve(self) -> None:
         self.assertEqual(SIGNAL_METHODS, (SIGNAL_METHOD_FAIR_VALUE_EDGE_CURVE,))
@@ -3914,7 +3920,7 @@ class MatrixModelsTestCase(unittest.TestCase):
         self.assertTrue(harness.view_synced)
         self.assertTrue(harness.tabs_redrawn)
         self.assertTrue(harness.redrawn)
-        self.assertEqual(harness.status, "Cached matrix tabs loaded. Click RELOAD MATRIX to request live quotes.")
+        self.assertEqual(harness.status, "Cached matrix tabs loaded. Click Reload matrix to request live quotes.")
 
     def test_reloaded_matrix_tab_rebuilds_only_active_stale_tab(self) -> None:
         class _StringValue:
@@ -4299,8 +4305,8 @@ class MatrixModelsTestCase(unittest.TestCase):
         self.assertEqual(connection_title.grid_info["row"], 0)
         self.assertEqual(harness.connection_status_label.grid_info["row"], 0)
         self.assertEqual(harness.auth_status_label.grid_info["row"], 0)
-        self.assertEqual(widget_with_text("CONNECT").grid_info["row"], 0)
-        self.assertEqual(widget_with_text("DISCONNECT").grid_info["row"], 0)
+        self.assertEqual(widget_with_text("Connect").grid_info["row"], 0)
+        self.assertEqual(widget_with_text("Disconnect").grid_info["row"], 0)
         self.assertEqual(harness.recorder_indicator_label.grid_info["row"], 0)
         self.assertEqual(harness.recorder_indicator_label.grid_info["sticky"], "e")
         self.assertEqual(harness.market_data_quote_status_label.grid_info["row"], 1)
@@ -4816,11 +4822,13 @@ class MatrixModelsTestCase(unittest.TestCase):
         self.assertTrue(next(options["text"] for item, options in harness.matrix_canvas.updates if item == 4).startswith("B "))
         self.assertEqual(harness.redraws, 0)
 
-    def test_matrix_cell_subscription_style_priority_and_recurrent_failure_width(self) -> None:
+    def test_matrix_cell_subscription_style_priority_and_recurrent_failure_hatch(self) -> None:
         subscribed = resolve_matrix_cell_subscription_style(["subscribed"], ["subscribed"])
-        self.assertEqual(subscribed.outline, SUBSCRIPTION_CONFIRMED_COLOR)
+        # Healthy cells keep the plain grid hairline: no green border, no hatch.
+        self.assertEqual(subscribed.outline, GRID_LINE)
         self.assertEqual(subscribed.width, 1)
         self.assertEqual(subscribed.dash, ())
+        self.assertEqual(subscribed.hatch, 0)
 
         pending = resolve_matrix_cell_subscription_style(
             ["pending_subscribe", "subscribed"],
@@ -4846,18 +4854,21 @@ class MatrixModelsTestCase(unittest.TestCase):
             ["pending_subscribe"],
             recurrent_failures=1,
         )
-        self.assertEqual(direct_failed.outline, SUBSCRIPTION_FAILED_COLOR)
-        self.assertEqual(direct_failed.width, 2)
+        # A failed direct leg hatches the cell instead of outlining it in red.
+        self.assertEqual(direct_failed.outline, GRID_LINE)
+        self.assertEqual(direct_failed.width, 1)
         self.assertEqual(direct_failed.dash, ())
+        self.assertEqual(direct_failed.hatch, one_desk.FAILED_HATCH_SPACING)
 
         recurrent_direct_failure = resolve_matrix_cell_subscription_style(
             ["failed", "subscribed"],
             recurrent_failures=2,
         )
-        self.assertEqual(recurrent_direct_failure.outline, SUBSCRIPTION_FAILED_COLOR)
-        self.assertEqual(recurrent_direct_failure.width, 3)
+        self.assertEqual(recurrent_direct_failure.outline, GRID_LINE)
+        self.assertEqual(recurrent_direct_failure.hatch, one_desk.RECURRENT_FAILED_HATCH_SPACING)
+        self.assertLess(one_desk.RECURRENT_FAILED_HATCH_SPACING, one_desk.FAILED_HATCH_SPACING)
 
-    def test_hidden_context_failure_is_amber_while_direct_leg_failure_is_red(self) -> None:
+    def test_hidden_context_failure_is_amber_while_direct_leg_failure_is_hatched(self) -> None:
         contracts = [_option(float(strike)) for strike in range(98, 105)]
         plan = build_matrix_selection_plan(contracts, [100.0], [1.0], context_neighbors=2)
         selection = plan.visible[(100.0, 1.0)]
@@ -4916,7 +4927,8 @@ class MatrixModelsTestCase(unittest.TestCase):
             quote_kind="leg",
         )
         direct_style = OptionsMatrixApp._active_subscription_styles(harness, tab)[(100.0, 1.0)]
-        self.assertEqual(direct_style.outline, SUBSCRIPTION_FAILED_COLOR)
+        self.assertEqual(direct_style.outline, GRID_LINE)
+        self.assertEqual(direct_style.hatch, one_desk.FAILED_HATCH_SPACING)
 
     def test_rank_table_redraw_is_skipped_until_rank_signature_changes(self) -> None:
         class _Harness:
@@ -5191,7 +5203,7 @@ class MatrixModelsTestCase(unittest.TestCase):
         ready_text, ready_color = OptionsMatrixApp._cell_signal_text(harness, snapshot)
 
         self.assertEqual(ready_text, "M 0.50")
-        self.assertEqual(ready_color, "#111111")
+        self.assertEqual(ready_color, INK)
 
     def test_exact_width_generation_keeps_mixed_half_point_strikes_separate(self) -> None:
         contracts = [_option(strike) for strike in (100.0, 100.5, 101.0, 102.0)]

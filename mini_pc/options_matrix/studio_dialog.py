@@ -7,13 +7,13 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import TYPE_CHECKING
 
+from .one_desk import MUTED, NAVY, TITLE_FONT
 from .studio_settings import MAX_SHARE_PORT, MIN_SHARE_PORT
 from .window_placement import center_dialog_on_parent_monitor
 
 if TYPE_CHECKING:
     from .app import OptionsMatrixApp
 
-MUTED = "#667085"
 REFRESH_MS = 1000
 
 
@@ -32,7 +32,7 @@ class StudioSettingsDialog:
         box.grid(sticky="nsew")
         box.columnconfigure(1, weight=1)
 
-        ttk.Label(box, text="Share with the work PC", font=("Segoe UI", 10, "bold")).grid(
+        ttk.Label(box, text="Share with the work PC", font=TITLE_FONT).grid(
             row=0, column=0, columnspan=4, sticky="w"
         )
         self.share_enabled = tk.BooleanVar(value=settings.share_enabled)
@@ -70,7 +70,7 @@ class StudioSettingsDialog:
         ttk.Button(password_buttons, text="New password", command=self._new_password).pack(side="left", padx=(6, 0))
 
         self.share_status_var = tk.StringVar()
-        ttk.Label(box, textvariable=self.share_status_var, foreground="#1f4d7a", wraplength=520, justify="left").grid(
+        ttk.Label(box, textvariable=self.share_status_var, foreground=NAVY, wraplength=520, justify="left").grid(
             row=5, column=0, columnspan=4, sticky="w", pady=(8, 0)
         )
         ttk.Label(
@@ -87,7 +87,7 @@ class StudioSettingsDialog:
 
         ttk.Separator(box).grid(row=7, column=0, columnspan=4, sticky="ew", pady=12)
 
-        ttk.Label(box, text="Autopilot", font=("Segoe UI", 10, "bold")).grid(
+        ttk.Label(box, text="Autopilot", font=TITLE_FONT).grid(
             row=8, column=0, columnspan=4, sticky="w"
         )
         self.connect_at_startup = tk.BooleanVar(value=settings.connect_at_startup)
@@ -111,7 +111,7 @@ class StudioSettingsDialog:
             command=app._on_record_daily_changed,
         ).grid(row=11, column=0, columnspan=4, sticky="w")
         self.autopilot_var = tk.StringVar()
-        ttk.Label(box, textvariable=self.autopilot_var, foreground="#1f4d7a", wraplength=520, justify="left").grid(
+        ttk.Label(box, textvariable=self.autopilot_var, foreground=NAVY, wraplength=520, justify="left").grid(
             row=12, column=0, columnspan=4, sticky="w", pady=(6, 0)
         )
         ttk.Label(

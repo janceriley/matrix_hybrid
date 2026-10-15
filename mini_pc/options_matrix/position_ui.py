@@ -7,6 +7,9 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from tkinter import ttk
 
+from .one_desk import (
+    ERROR_TEXT, POSITION_ROW_BUY_BG, POSITION_ROW_BUY_FG, POSITION_ROW_SELL_BG, POSITION_ROW_SELL_FG,
+)
 from .models import (
     LIVE_MARKET_DATA_TYPE, SIGNAL_BUY, MonitoredSideSnapshot,
     build_synthetic_vertical_quote, format_price, format_strike, pair_key_for_pair,
@@ -96,7 +99,7 @@ class PositionAlertsMixin:
         controls.bind("<Configure>", lambda event: summary.configure(
             wraplength=max(150, event.width - self.position_edit_button.winfo_reqwidth() - 16)))
         positions_tab = ttk.Frame(notebook)
-        notebook.add(positions_tab, text="Positions / Exit Alerts")
+        notebook.add(positions_tab, text="Positions / exit alerts")
         positions_tab.columnconfigure(0, weight=1)
         positions_tab.rowconfigure(0, weight=1)
         columns = ("pair", "side", "average", "edge", "target", "mid", "profit", "status")
@@ -110,13 +113,13 @@ class PositionAlertsMixin:
         scroll = ttk.Scrollbar(positions_tab, orient="vertical", command=self.position_tree.yview)
         scroll.grid(row=0, column=1, sticky="ns")
         self.position_tree.configure(yscrollcommand=scroll.set)
-        self.position_tree.tag_configure("BUY", background="#b7ebcc", foreground="#146c43")
-        self.position_tree.tag_configure("SELL", background="#ffc9c5", foreground="#a12118")
+        self.position_tree.tag_configure("BUY", background=POSITION_ROW_BUY_BG, foreground=POSITION_ROW_BUY_FG)
+        self.position_tree.tag_configure("SELL", background=POSITION_ROW_SELL_BG, foreground=POSITION_ROW_SELL_FG)
         self.position_tree.bind("<Double-1>", self._show_position_in_matrix)
         self._position_tree_keys = {}
         actions = ttk.Frame(positions_tab)
         actions.grid(row=1, column=0, sticky="w", pady=3)
-        for label, command in (("Edit position", self._edit_position_row), ("Arm / Pause", self._toggle_position_row),
+        for label, command in (("Edit position", self._edit_position_row), ("Arm / pause", self._toggle_position_row),
                                ("Delete position", self._clear_position_row)):
             ttk.Button(actions, text=label, command=command).pack(side="left", padx=(0, 6))
         ttk.Label(positions_tab, text="Targets use your configured width edges and the market midpoint. Unloaded positions are paused.").grid(row=2, column=0, sticky="w")
@@ -295,7 +298,7 @@ class PositionAlertsMixin:
         target = tk.StringVar()
         ttk.Label(box, textvariable=target, wraplength=380).grid(row=4, column=0, columnspan=2, sticky="w", pady=8)
         error = tk.StringVar()
-        ttk.Label(box, textvariable=error, foreground="#b42318", wraplength=380).grid(row=5, column=0, columnspan=2, sticky="w")
+        ttk.Label(box, textvariable=error, foreground=ERROR_TEXT, wraplength=380).grid(row=5, column=0, columnspan=2, sticky="w")
 
         def draft():
             return PositionRecord(key, side.get().upper(), float(average.get()), armed.get())

@@ -53,6 +53,7 @@ from options_matrix.app import (
     seed_cached_matrix_quotes,
     union_matrix_quote_target_selections,
 )
+from options_matrix.one_desk import GRID_LINE, INK, INK_2, MUTED, NAVY, SUNKEN
 from options_matrix.models import (
     DEFAULT_SIGNAL_METHOD,
     MatrixSelectionPlan,
@@ -171,7 +172,7 @@ class ViewerApp(OptionsMatrixApp):
         self._set_status(
             "Connecting to the mini PC ..."
             if self.viewer_settings.complete
-            else "Click CONNECTION… and enter the mini PC's address and password."
+            else "Click Connection… and enter the mini PC's address and password."
         )
 
     # ------------------------------------------------------------------
@@ -198,16 +199,16 @@ class ViewerApp(OptionsMatrixApp):
             connection,
             textvariable=self.auth_status_var,
             foreground=CONNECTION_PENDING_COLOR,
-            width=12,
+            width=13,
             anchor="center",
         )
         self.auth_status_label.grid(row=0, column=2, sticky="w", padx=(0, 4))
         self._install_tooltip(self.auth_status_label, lambda: self._studio_auth_detail())
-        self.connect_button = ttk.Button(connection, text="CONNECT", command=self._connect)
+        self.connect_button = ttk.Button(connection, text="Connect", command=self._connect)
         self.connect_button.grid(row=0, column=3, padx=(0, 6))
-        self.disconnect_button = ttk.Button(connection, text="DISCONNECT", command=self._disconnect)
+        self.disconnect_button = ttk.Button(connection, text="Disconnect", command=self._disconnect)
         self.disconnect_button.grid(row=0, column=4, padx=(0, 6))
-        ttk.Button(connection, text="CONNECTION…", command=self._open_connection_dialog).grid(
+        ttk.Button(connection, text="Connection…", command=self._open_connection_dialog).grid(
             row=0, column=5, padx=(0, 10)
         )
         self.recorder_indicator_label = ttk.Label(
@@ -221,14 +222,14 @@ class ViewerApp(OptionsMatrixApp):
         self._install_tooltip(self.recorder_indicator_label, "Recording runs on the mini PC.")
 
         self.health_var = tk.StringVar(value="Mini PC status will appear here once connected.")
-        health_label = ttk.Label(connection, textvariable=self.health_var, foreground="#667085", anchor="w")
+        health_label = ttk.Label(connection, textvariable=self.health_var, foreground=MUTED, anchor="w")
         health_label.grid(row=1, column=0, columnspan=8, sticky="ew", pady=(2, 0))
 
-        ttk.Label(connection, text="STATUS", foreground="#667085").grid(row=2, column=0, sticky="w", pady=(1, 0))
+        ttk.Label(connection, text="STATUS", foreground=MUTED).grid(row=2, column=0, sticky="w", pady=(1, 0))
         self.status_label = ttk.Label(
             connection,
             textvariable=self.status_display_var,
-            foreground="#1f4d7a",
+            foreground=NAVY,
             anchor="w",
             width=1,
         )
@@ -259,13 +260,13 @@ class ViewerApp(OptionsMatrixApp):
         self.view_width_frame.grid(row=0, column=7, sticky="w", padx=(4, 10))
         buttons = ttk.Frame(controls)
         buttons.grid(row=0, column=8, sticky="w")
-        ttk.Button(buttons, text="APPLY VIEW", command=self._apply_view_from_controls).pack(side="left")
-        ttk.Button(buttons, text="SHOW ALL", command=self._reset_view_filter).pack(side="left", padx=(6, 0))
-        ttk.Button(buttons, text="SETTINGS", command=self._open_settings_dialog).pack(side="left", padx=(6, 0))
+        ttk.Button(buttons, text="Apply view", command=self._apply_view_from_controls).pack(side="left")
+        ttk.Button(buttons, text="Show all", command=self._reset_view_filter).pack(side="left", padx=(6, 0))
+        ttk.Button(buttons, text="Settings…", command=self._open_settings_dialog).pack(side="left", padx=(6, 0))
         ttk.Label(
             controls,
             text="Choices are limited to what the mini PC has loaded. * marks a narrowed view.",
-            foreground="#667085",
+            foreground=MUTED,
         ).grid(row=0, column=9, sticky="e")
 
     def _build_extra_tabs(self, notebook: ttk.Notebook) -> None:
@@ -278,7 +279,7 @@ class ViewerApp(OptionsMatrixApp):
             child.destroy()
         if not self.matrix_tabs:
             text = "(waiting for the mini PC)" if self._link_state != LINK_LIVE else "(no tabs on the mini PC)"
-            tk.Label(frame, text=text, bg=GRID_BG, fg="#667085", font=self.grid_font).grid(row=0, column=0, sticky="w")
+            tk.Label(frame, text=text, bg=GRID_BG, fg=MUTED, font=self.grid_font).grid(row=0, column=0, sticky="w")
             return
         for index, tab in enumerate(self.matrix_tabs):
             is_active = tab.tab_id == self.active_tab_id
@@ -287,12 +288,14 @@ class ViewerApp(OptionsMatrixApp):
                 frame,
                 text=tab.label,
                 bg=bg,
-                fg="#111111",
+                fg=INK,
                 font=self.grid_font_bold if is_active else self.grid_font,
                 padx=6,
                 pady=2,
-                bd=1,
-                relief="solid",
+                bd=0,
+                highlightthickness=1,
+                highlightbackground=NAVY if is_active else GRID_LINE,
+                highlightcolor=NAVY if is_active else GRID_LINE,
             )
             label.grid(row=0, column=index, padx=(0, 4), sticky="w")
             label.bind("<Button-1>", lambda _event, tab_id=tab.tab_id: self._activate_matrix_tab(tab_id))
@@ -301,7 +304,7 @@ class ViewerApp(OptionsMatrixApp):
         self.matrix_reload_hitbox = None
         visible_width = max(canvas.winfo_width(), total_width, 360)
         visible_height = max(canvas.winfo_height(), total_height, 180)
-        canvas.create_rectangle(0, 0, visible_width, visible_height, fill="#eef0f3", outline="", stipple="gray25")
+        canvas.create_rectangle(0, 0, visible_width, visible_height, fill=SUNKEN, outline="", stipple="gray25")
         if self._link_state == LINK_LIVE:
             text = "This tab is waiting for live data on the mini PC."
         elif self._link_state == LINK_STOPPED:
@@ -312,7 +315,7 @@ class ViewerApp(OptionsMatrixApp):
             visible_width / 2,
             max(90, visible_height / 2),
             text=text,
-            fill="#4b5563",
+            fill=INK_2,
             font=self.grid_font_bold,
             anchor="c",
             width=max(240, visible_width - 40),
